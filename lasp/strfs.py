@@ -189,6 +189,21 @@ def fit_strf_lasso(input, output, lags, lambda1=1.0, lambda2=1.0, num_threads=-1
 
 
 def fit_strf_ridge(input, output, lags, alpha=1.0, verbose=False):
+    """ Fit a spatio-temporal receptive field (STRF). A STRF maps input stimuli
+        into a scalar output variable. A simple ridge regression algorithm is used
+        to fit the STRF.
+
+    :param input: A numpy array of shape (num_time_points, num_spatial_channels).
+    :param output: A numpy array of shape (num_time_points).
+    :param lags: An array of integers that specify which time points should be included. For example,
+                 to fit a STRF that uses only the stimulus information at time t to predict the output
+                 at time t, specify lags=[0]. To fit a STRF that uses the stimulus information at
+                 time t and the previous 10 time points, specify lags=range(0, 11).
+    :param alpha: The regularization parameter for ridge regression. Try a bunch!
+    :param verbose:
+    :return: strf,bias: strf is a numpy array of shape (num_spatial_channels,len(lags)), which is the
+            receptive field. bias is a scalar.
+    """
 
     #convert the input into a toeplitz-like matrix
     if verbose:
