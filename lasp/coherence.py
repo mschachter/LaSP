@@ -552,10 +552,21 @@ def coherence_jn(s1, s2, sample_rate, window_length, increment, min_freq=0, max_
     cross_spec12 = tf1*np.conj(tf2)
     ps1 = np.abs(tf1)**2
     ps2 = np.abs(tf2)**2
+    
+    # compute the coherence using all the data
+    csd = cross_spec12.sum(axis=1)
+    denom = ps1.sum(axis=1)*ps2.sum(axis=1)
+    c_amp = np.abs(csd) / np.sqrt(denom)
+    cohe = c_amp**2
+
+    # compute the phase coherence using all the data
+    c_phase = np.cos(np.angle(csd))
 
     # make leave-one-out estimates of the complex coherence
     jn_estimates_amp = list()
     jn_estimates_phase = list()
+    jn_estimates_cohe = list()
+    
     njn = tf1.shape[1]
     for k in range(njn):
         i = np.ones([njn], dtype='bool')
@@ -564,30 +575,30 @@ def coherence_jn(s1, s2, sample_rate, window_length, increment, min_freq=0, max_
         denom = ps1[:, i].sum(axis=1)*ps2[:, i].sum(axis=1)
         c_amp = np.abs(csd) / np.sqrt(denom)
         jn_estimates_amp.append(c_amp)
+        jn_estimates_cohe.append(njn*cohe - (njn-1)*(c_amp**2))
 
         c_phase = np.cos(np.angle(csd))
         jn_estimates_phase.append(c_phase)
+        
 
     jn_estimates_amp = np.array(jn_estimates_amp)
+    jn_estimates_cohe = np.array(jn_estimates_cohe)
     jn_estimates_phase = np.array(jn_estimates_phase)
 
     # estimate the variance of the coherence
     jn_mean_amp = jn_estimates_amp.mean(axis=0)
     jn_diff_amp = (jn_estimates_amp - jn_mean_amp)**2
     c_var_amp = ((njn-1) / float(njn)) * jn_diff_amp.sum(axis=0)
+    cohe_unbiased = jn_estimates_cohe.mean(axis=0)
+    cohe_se = jn_estimates_cohe.std(axis=0)/np.sqrt(njn)
+    
     
     # estimate the variance of the phase coherence
     jn_mean_phase = jn_estimates_phase.mean(axis=0)
     jn_diff_phase = (jn_estimates_phase - jn_mean_phase)**2
     c_phase_var = ((njn-1) / float(njn)) * jn_diff_phase.sum(axis=0)
 
-    # compute the coherence using all the data
-    csd = cross_spec12.sum(axis=1)
-    denom = ps1.sum(axis=1)*ps2.sum(axis=1)
-    c_amp = np.abs(csd) / np.sqrt(denom)
 
-    # compute the phase coherence using all the data
-    c_phase = np.cos(np.angle(csd))
 
     assert c_amp.max() <= 1.0, "c_amp.max()=%f" % c_amp.max()
     assert c_amp.min() >= 0.0, "c_amp.min()=%f" % c_amp.min()
@@ -624,9 +635,9 @@ def coherence_jn(s1, s2, sample_rate, window_length, increment, min_freq=0, max_
         plt.show()
         """
 
-        return freq1,c_amp,c_var_amp,c_phase,c_phase_var,coherency,coherency_t
+        return freq1,c_amp,c_var_amp,c_phase,c_phase_var,coherency,coherency_t, cohe_unbiased, cohe_se
     else:
-        return freq1,c_amp,c_var_amp,c_phase,c_phase_var
+        return freq1,c_amp,c_var_amp,c_phase,c_phase_var, cohe_unbiased, cohe_se
 
 
 def compute_coherence_from_timefreq(tf1, tf2, sample_rate, window_size, gauss_window=False, nstd=6):

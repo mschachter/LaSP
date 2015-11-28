@@ -45,7 +45,14 @@ class WavFile():
             self.sample_depth = wr.getsampwidth()
             wr.close()
 
-            self.sample_rate,self.data = read_wavfile(file_name)
+            self.sample_rate, data = read_wavfile(file_name)
+            # If stereo make mono
+            if self.num_channels == 1:
+                self.data = data
+            else:
+                self.data = data.mean(axis=1)
+                
+            
         self.analyzed = False
 
     def to_wav(self, output_file, normalize=False, max_amplitude=32767.0):
@@ -253,6 +260,16 @@ class BioSound():
         self.fpsd = freqdata
         self.psd = spectdata
         
+    def spectroCalc(self, spec_sample_rate=1000, freq_spacing = 50, min_freq=0, max_freq=10000, noise_level_db=80):
+        
+        t,f,spec,spec_rms = spectrogram(self.sound, self.samprate, spec_sample_rate=spec_sample_rate,
+                                        freq_spacing=freq_spacing, min_freq=min_freq, max_freq=max_freq,
+                                        log=1, noise_level_db=noise_level_db, rectify=True, cmplx=False)
+        self.to = t
+        self.fo = f
+        self.spectro = spec
+
+        
     def ampenv(self):
     # Calculates the amplitude enveloppe and related parameters
     
@@ -337,55 +354,60 @@ class BioSound():
         plt.plot(t,self.sound, 'k')
         # plt.xlabel('Time (ms)')
         plt.xlim(0, t[-1])               
-        # Plot the amplitude enveloppe        
-        plt.plot(self.tAmp*1000.0, self.amp, 'r', linewidth=2)
+        # Plot the amplitude enveloppe  
+        if self.tAmp != None :      
+            plt.plot(self.tAmp*1000.0, self.amp, 'r', linewidth=2)
       
         # Plot the spectrogram
         plt.axes([0.1, 0.1, 0.85, 0.6])
         spec_colormap()   # defined in sound.py
         cmap = plt.get_cmap('SpectroColorMap')
         
-        soundSpect = self.spectro
-        maxB = soundSpect.max()
-        minB = maxB-DBNOISE
-        soundSpect[soundSpect < minB] = minB
-        plt.imshow(np.transpose(soundSpect), extent = (self.to[0]*1000, self.to[-1]*1000, self.fo[0], self.fo[-1]), aspect='auto', interpolation='nearest', origin='lower', cmap=cmap, vmin=minB, vmax=maxB)
+        if self.spectro != None :
+            soundSpect = self.spectro
+            maxB = soundSpect.max()
+            minB = maxB-DBNOISE
+            soundSpect[soundSpect < minB] = minB
+            plt.imshow(np.transpose(soundSpect), extent = (self.to[0]*1000, self.to[-1]*1000, self.fo[0], self.fo[-1]), aspect='auto', interpolation='nearest', origin='lower', cmap=cmap, vmin=minB, vmax=maxB)
+        
         plt.ylim(f_low, f_high)
         plt.xlim(0, t[-1])
         plt.ylabel('Frequency (Hz)')
         plt.xlabel('Time (ms)')
                      
     # Plot the fundamental on the same figure
-        plt.plot(self.to*1000.0, self.f0, 'k', linewidth=3)
-        plt.plot(self.to*1000.0, self.f0_2, 'm', linewidth=3)
-        plt.plot(self.to*1000.0, self.F1, 'r--', linewidth=3)
-        plt.plot(self.to*1000.0, self.F2, 'w--', linewidth=3)
-        plt.plot(self.to*1000.0, self.F3, 'b--', linewidth=3)
+        if self.f0 != None :
+            plt.plot(self.to*1000.0, self.f0, 'k', linewidth=3)
+            plt.plot(self.to*1000.0, self.f0_2, 'm', linewidth=3)
+            plt.plot(self.to*1000.0, self.F1, 'r--', linewidth=3)
+            plt.plot(self.to*1000.0, self.F2, 'w--', linewidth=3)
+            plt.plot(self.to*1000.0, self.F3, 'b--', linewidth=3)
         plt.show()
            
     # Plot Power Spectrum
         plt.figure(2)
         mngr = plt.get_current_fig_manager()
         mngr.window.setGeometry(650, 260, 640, 545)
-        plt.plot(self.fpsd, self.psd, 'k-') 
-        plt.xlabel('Frequency Hz')
-        plt.ylabel('Power Linear')
+        if self.psd != None :
+            plt.plot(self.fpsd, self.psd, 'k-') 
+            plt.xlabel('Frequency Hz')
+            plt.ylabel('Power Linear')
         
-        xl, xh, yl, yh = plt.axis()
-        xl = 0.0
-        xh = f_high
-        plt.axis((xl, xh, yl, yh))
-        plt.plot([self.q1, self.q1], [yl, yh], 'k--')
-        plt.plot([self.q2, self.q2], [yl, yh], 'k--')
-        plt.plot([self.q3, self.q3], [yl, yh], 'k--')
+            xl, xh, yl, yh = plt.axis()
+            xl = 0.0
+            xh = f_high
+            plt.axis((xl, xh, yl, yh))
+            plt.plot([self.q1, self.q1], [yl, yh], 'k--')
+            plt.plot([self.q2, self.q2], [yl, yh], 'k--')
+            plt.plot([self.q3, self.q3], [yl, yh], 'k--')
         
-        F1Mean = self.F1[~np.isnan(self.F1)].mean()
-        F2Mean = self.F2[~np.isnan(self.F2)].mean()
-        F3Mean = self.F3[~np.isnan(self.F3)].mean()
-        plt.plot([F1Mean, F1Mean], [yl, yh], 'r--', linewidth=2.0)
-        plt.plot([F2Mean, F2Mean], [yl, yh], 'c--', linewidth=2.0)
-        plt.plot([F3Mean, F3Mean], [yl, yh], 'b--', linewidth=2.0)
-        plt.show()
+            F1Mean = self.F1[~np.isnan(self.F1)].mean()
+            F2Mean = self.F2[~np.isnan(self.F2)].mean()
+            F3Mean = self.F3[~np.isnan(self.F3)].mean()
+            plt.plot([F1Mean, F1Mean], [yl, yh], 'r--', linewidth=2.0)
+            plt.plot([F2Mean, F2Mean], [yl, yh], 'c--', linewidth=2.0)
+            plt.plot([F3Mean, F3Mean], [yl, yh], 'b--', linewidth=2.0)
+            plt.show()
   
     # Table of results
         plt.figure(3)
@@ -542,7 +564,9 @@ def spectrogram(s, sample_rate, spec_sample_rate, freq_spacing, min_freq=0, max_
 
     if log:
         #create log spectrogram (power in decibels)
-        spec = 20.0*np.log10(np.abs(timefreq)) + noise_level_db
+        abstimefreq = np.abs(timefreq)
+        maxabs = np.max(abstimefreq)
+        spec = 20.0*np.log10(abstimefreq/maxabs) + noise_level_db
         if rectify:
             #rectify spectrogram
             spec[spec < 0.0] = 0.0
@@ -999,8 +1023,13 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         CY = dct(powSoundGood-powAmp, norm = 'ortho')            
     
         tCY = 2000.0*np.array(range(len(CY)))/fs          # Units of Cepstrum in ms
-        fCY = 1000.0/tCY                                  # Corresponding fundamental frequency in Hz.
-        flowCY = mlab.find(fCY < lowFc)[0]
+        fCY = 1000.0/tCY # Corresponding fundamental frequency in Hz.
+        lowInd = mlab.find(fCY<lowFc)
+        if lowInd.size > 0:
+            flowCY = mlab.find(fCY < lowFc)[0]
+        else:
+            flowCY = fCY.size
+            
         fhighCY = mlab.find(fCY < highFc)[0]
     
         # Find peak of Cepstrum
