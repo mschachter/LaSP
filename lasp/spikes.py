@@ -1,3 +1,4 @@
+from matplotlib.colors import ListedColormap
 from scipy.ndimage import convolve1d
 from scipy.stats import gamma
 from matplotlib.patches import Rectangle
@@ -370,3 +371,19 @@ def spike_trains_to_matrix(spike_trains, bin_size, start_time, duration):
             assert si <= spike_count.shape[1], "IndexError: nt=%d, si=%d, k=%d" % (nt, si, k)
             spike_count[k, min(si, spike_count.shape[1]-1)] += 1.0
     return spike_count
+
+
+def psth_colormap(noise_level=0.1, ncolors=256):
+
+    cdata = list()
+    for x in np.linspace(0, 1, ncolors):
+
+        if x < noise_level:
+            cdata.append([1., 1., 1., 1])
+        else:
+            v = (x - noise_level) / (1. - noise_level)
+            c = (1. - v)**6
+            # cdata.append([0, v/2., v, (v/2. + 0.5)])
+            cdata.append([c, c, c])
+
+    return ListedColormap(cdata, name='psth')
