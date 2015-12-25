@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from stats import compute_R2
 
 
-def multi_plot(the_data_list, plot_func, title=None, nrows=4, ncols=5, figsize=None, output_pattern=None, transpose=False, facecolor='gray'):
+def multi_plot(the_data_list, plot_func, title=None, nrows=4, ncols=5, figsize=None, output_pattern=None,
+               transpose=False, facecolor='gray', hspace=0.20, wspace=0.20):
 
     nsp = 0
     fig = None
@@ -45,7 +46,7 @@ def multi_plot(the_data_list, plot_func, title=None, nrows=4, ncols=5, figsize=N
                 plt.close('all')
             fig = plt.figure(figsize=figsize, facecolor=facecolor)
             fig_num += 1
-            fig.subplots_adjust(top=0.95, bottom=0.02, right=0.97, left=0.03, hspace=0.20)
+            fig.subplots_adjust(top=0.95, bottom=0.02, right=0.97, left=0.03, hspace=hspace, wspace=wspace)
             if title is not None:
                 plt.suptitle(title + (" (%d)" % fig_num))
 
