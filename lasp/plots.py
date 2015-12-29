@@ -271,7 +271,7 @@ def register_husl_colormap(nsegs=90):
     plt.register_cmap(cmap=cm)
 
 
-def custom_legend(colors, labels):
+def custom_legend(colors, labels, linestyles=None):
     """ Creates a list of matplotlib Patch objects that can be passed to the legend(...) function to create a custom
         legend.
 
@@ -279,16 +279,109 @@ def custom_legend(colors, labels):
     :param labels:  A list of labels, one for each entry in the legend.
     """
 
+    if linestyles is not None:
+        assert len(linestyles) == len(colors), "Length of linestyles must match length of colors."
+
     h = list()
-    for c,l in zip(colors, labels):
+    for k,(c,l) in enumerate(zip(colors, labels)):
         clr = c
         ls = 'solid'
+        if linestyles is not None:
+            ls = linestyles[k]
         patch = patches.Patch(color=clr, label=l, linestyle=ls)
         h.append(patch)
     return h
 
 
+def grouped_boxplot(data, group_names=None, subgroup_names=None, ax=None, subgroup_colors=None,
+                    box_width=0.6, box_spacing=1.0):
+    """ Draws a grouped boxplot. The data should be organized in a hierarchy, where there are multiple
+        subgroups for each main group.
+
+    :param data: A dictionary of length equal to the number of the groups. The key should be the
+                group name, the value should be a list of arrays. The length of the list should be
+                equal to the number of subgroups.
+    :param group_names: (Optional) The group names, should be the same as data.keys(), but can be ordered.
+    :param subgroup_names: (Optional) Names of the subgroups.
+    :param subgroup_colors: A list specifying the plot color for each subgroup.
+    :param ax: (Optional) The axis to plot on.
+    """
+
+    if group_names is None:
+        group_names = data.keys()
+
+    if ax is None:
+        ax = plt.gca()
+    plt.sca(ax)
+
+    nsubgroups = np.array([len(v) for v in data.values()])
+    assert len(np.unique(nsubgroups)) == 1, "Number of subgroups for each property differ!"
+    nsubgroups = nsubgroups[0]
+
+    if subgroup_colors is None:
+        subgroup_colors = list()
+        for k in range(nsubgroups):
+            subgroup_colors.append(np.random.rand(3))
+    else:
+        assert len(subgroup_colors) == nsubgroups, "subgroup_colors length must match number of subgroups (%d)" % nsubgroups
+
+    def _decorate_box(_bp, _d):
+        plt.setp(_bp['boxes'], lw=0, color='k')
+        plt.setp(_bp['whiskers'], lw=3.0, color='k')
+
+        # fill in each box with a color
+        assert len(_bp['boxes']) == nsubgroups
+        for _k,_box in enumerate(_bp['boxes']):
+            _boxX = list()
+            _boxY = list()
+            for _j in range(5):
+                _boxX.append(_box.get_xdata()[_j])
+                _boxY.append(_box.get_ydata()[_j])
+            _boxCoords = zip(_boxX, _boxY)
+            _boxPolygon = plt.Polygon(_boxCoords, facecolor=subgroup_colors[_k])
+            ax.add_patch(_boxPolygon)
+
+        # draw a black line for the median
+        for _k,_med in enumerate(_bp['medians']):
+            _medianX = list()
+            _medianY = list()
+            for _j in range(2):
+                _medianX.append(_med.get_xdata()[_j])
+                _medianY.append(_med.get_ydata()[_j])
+                plt.plot(_medianX, _medianY, 'k', linewidth=3.0)
+
+            # draw a black asterisk for the mean
+            plt.plot([np.mean(_med.get_xdata())], [np.mean(_d[_k])], color='w', marker='*',
+                      markeredgecolor='k', markersize=12)
+
+    cpos = 1
+    label_pos = list()
+    for k in group_names:
+        d = data[k]
+        nsubgroups = len(d)
+        pos = np.arange(nsubgroups) + cpos
+        label_pos.append(pos.mean())
+        bp = plt.boxplot(d, positions=pos, widths=box_width)
+        _decorate_box(bp, d)
+        cpos += nsubgroups + box_spacing
+
+    plt.xlim(0, cpos-1)
+    plt.xticks(label_pos, group_names)
+
+    if subgroup_names is not None:
+        leg = custom_legend(subgroup_colors, subgroup_names)
+        plt.legend(handles=leg)
+
+
 if __name__ == '__main__':
 
-    draw_husl_circle()
+    # draw_husl_circle()
+
+    data = { 'A':[np.random.randn(100), np.random.randn(100) + 5],
+             'B':[np.random.randn(100)+1, np.random.randn(100) + 9],
+             'C':[np.random.randn(100)-3, np.random.randn(100) -5]
+           }
+
+    grouped_boxplot(data, group_names=['A', 'B', 'C'], subgroup_names=['Apples', 'Oranges'], subgroup_colors=['#D02D2E', '#D67700'])
+    plt.show()
 
