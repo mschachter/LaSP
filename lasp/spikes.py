@@ -154,7 +154,8 @@ def compute_psth(trials, duration, bin_size=0.001, time_offset=0.0):
 
             # add spike to each bin
             for k in sbins:
-                spike_counts[k] += 1
+                if k < nbins:
+                    spike_counts[k] += 1
 
     # compute rate in KHz by dividing by bin size
     spike_counts /= bin_size*1000.0
