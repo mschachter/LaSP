@@ -1338,3 +1338,16 @@ def inverse_real_spectrogram(spec, s_len,
         estimated_spec = spec_magnitude * np.exp(1j*spec_angle)
         estimated = inverse_spectrogram(estimated_spec, s_len, sample_rate, spec_sample_rate, freq_spacing, min_freq, max_freq, nstd, log=False)
     return estimated
+
+
+def log_transform(x, dbnoise=100):
+    """ Takes the log of a power spectrum or spectrogram to convert into decibels.
+
+    :param x: The power spectrum or spectrogram. The contents of x will be replaced with the log version.
+    :param dbnoise: The noise level in decibels. Anything lower than dbnoise will be set to zero.
+    """
+    x /= x.max()
+    zi = x > 0
+    x[zi] = 20*np.log10(x[zi]) + dbnoise
+    x[x < 0] = 0
+    x /= x.max()
