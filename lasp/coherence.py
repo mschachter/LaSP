@@ -542,12 +542,21 @@ def coherence_jn(s1, s2, sample_rate, window_length, increment, min_freq=0, max_
              coherency is only returned if return_coherency=True, it is the inverse fourier transform of the complex-
              valued coherency.
     """
+    if s1.shape != s2.shape:
+        raise AssertionError('s1 and s2 must have the same shape')
+    if s1.ndim == 1:
+        s1, s2 = [np.array(i, ndmin=2) for i in [s1, s2]]
 
-    t1, freq1, tf1, rms1 = gaussian_stft(s1, sample_rate, window_length=window_length, increment=increment,
-                                         min_freq=min_freq, max_freq=max_freq)
+    tf1, tf2 = list(), list()
+    for i, (is1, is2) in enumerate(zip(s1, s2)):
+        t1, freq1, itf1, rms1 = gaussian_stft(is1, sample_rate, window_length=window_length, increment=increment,
+                                             min_freq=min_freq, max_freq=max_freq)
 
-    t2, freq2, tf2, rms2 = gaussian_stft(s2, sample_rate, window_length=window_length, increment=increment,
-                                         min_freq=min_freq, max_freq=max_freq)
+        t2, freq2, itf2, rms2 = gaussian_stft(is2, sample_rate, window_length=window_length, increment=increment,
+                                             min_freq=min_freq, max_freq=max_freq)
+        tf1.append(itf1)
+        tf2.append(itf2)
+    tf1, tf2 = [np.hstack(i) for i in [tf1, tf2]]
 
     cross_spec12 = tf1*np.conj(tf2)
     ps1 = np.abs(tf1)**2
