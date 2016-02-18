@@ -1,6 +1,5 @@
 import copy
 import operator
-import husl
 from matplotlib import patches
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -200,6 +199,8 @@ def make_phase_image(amp, phase, normalize=True, saturate=True, threshold=True):
         Turns a phase matrix into an image to be plotted with imshow.
     """
 
+    import husl
+
     nelectrodes,d = amp.shape
     alpha = copy.deepcopy(amp)
     if normalize:
@@ -230,6 +231,8 @@ def draw_husl_circle():
         it's useful for plotting phase. This figure could serve as a "color circle" as opposed to a color bar.
     """
 
+    import husl
+
     #generate a bunch of points on the circle
     theta = np.arange(0.0, 2*np.pi, 1e-3)
 
@@ -250,6 +253,8 @@ def draw_husl_circle():
 
 
 def register_husl_colormap(nsegs=90):
+
+    import husl
 
     cdict = {'red':list(), 'green':list(), 'blue':list()}
 
