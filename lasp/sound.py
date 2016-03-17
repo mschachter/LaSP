@@ -111,7 +111,8 @@ class WavFile():
         self.analyzed = False
         return self.analyze(min_freq, max_freq, spec_sample_rate, freq_spacing, envelope_cutoff_freq, noise_level_db, rectify, cmplx)
 
-    def plot(self, fig=None, show_envelope=True, min_freq=0.0, max_freq=10000.0, colormap=cmap.gist_yarg, noise_level_db=80):
+    def plot(self, fig=None, show_envelope=True, min_freq=0.0, max_freq=10000.0, colormap=cmap.gist_yarg, noise_level_db=80,
+             start_time=0, end_time=np.inf):
 
         self.analyze(min_freq=min_freq, max_freq=max_freq, noise_level_db=noise_level_db)
 
@@ -122,18 +123,21 @@ class WavFile():
             spw_size = 25
             spec_size = 75
 
+        raw_ti = (self.data_t > start_time) & (self.data_t < end_time)
+
         if fig is None:
             fig = plt.figure()
         gs = plt.GridSpec(100, 1)
         ax = fig.add_subplot(gs[:spw_size])
-        plt.plot(self.data_t, self.data, 'k-')
+        plt.plot(self.data_t[raw_ti], self.data[raw_ti], 'k-')
         plt.axis('tight')
         plt.ylabel('Sound Pressure')
 
         s = (spw_size+5)
         e = s + spec_size
         ax = fig.add_subplot(gs[s:e])
-        plot_spectrogram(self.spectrogram_t, self.spectrogram_f, self.spectrogram, ax=ax, ticks=True, colormap=colormap)
+        spec_ti = (self.spectrogram_t > start_time) & (self.spectrogram_t < end_time)
+        plot_spectrogram(self.spectrogram_t[spec_ti], self.spectrogram_f, self.spectrogram[:, spec_ti], ax=ax, ticks=True, colormap=colormap, colorbar=False)
 
         if show_envelope:
             ax = fig.add_subplot(gs[(e+5):95])
