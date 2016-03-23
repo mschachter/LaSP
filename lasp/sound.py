@@ -1344,7 +1344,7 @@ def inverse_real_spectrogram(spec, s_len,
     return estimated
 
 
-def log_transform(x, dbnoise=100):
+def log_transform(x, dbnoise=100, normalize=False):
     """ Takes the log of a power spectrum or spectrogram to convert into decibels.
 
     :param x: The power spectrum or spectrogram. The contents of x will be replaced with the log version.
@@ -1354,4 +1354,5 @@ def log_transform(x, dbnoise=100):
     zi = x > 0
     x[zi] = 20*np.log10(x[zi]) + dbnoise
     x[x < 0] = 0
-    x /= x.max()
+    if normalize:
+        x /= x.max()
