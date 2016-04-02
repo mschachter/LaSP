@@ -225,7 +225,7 @@ def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_f
 
     nincrement = int(np.round(sample_rate*increment))
     nwindows = len(s) / nincrement
-    #print 'len(s)=%d, nwinlen=%d, hwinlen=%d, nincrement=%d, nwindows=%d' % (len(s), nwinlen, hnwinlen, nincrement, nwindows)
+    print 'len(s)=%d, nwinlen=%d, hwinlen=%d, nincrement=%d, nwindows=%d' % (len(s), nwinlen, hnwinlen, nincrement, nwindows)
 
     #pad the signal with zeros
     zs = np.zeros([len(s) + 2*hnwinlen])
@@ -254,7 +254,8 @@ def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_f
         #print 'est.shape=',est.shape
         tf[:, k] = est[findex]
 
-    t = np.arange(0, nwindows, 1.0) * increment
+    # Note that the desired spectrogram rate could be slightly modified
+    t = np.arange(0, nwindows, 1.0) * float(nincrement)/sample_rate
 
     return t, freq, tf
 
