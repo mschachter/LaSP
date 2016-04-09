@@ -225,7 +225,7 @@ def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_f
 
     nincrement = int(np.round(sample_rate*increment))
     nwindows = len(s) / nincrement
-    print 'len(s)=%d, nwinlen=%d, hwinlen=%d, nincrement=%d, nwindows=%d' % (len(s), nwinlen, hnwinlen, nincrement, nwindows)
+    # print 'len(s)=%d, nwinlen=%d, hwinlen=%d, nincrement=%d, nwindows=%d' % (len(s), nwinlen, hnwinlen, nincrement, nwindows)
 
     #pad the signal with zeros
     zs = np.zeros([len(s) + 2*hnwinlen])
