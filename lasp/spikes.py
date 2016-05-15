@@ -1,12 +1,12 @@
-from matplotlib.colors import ListedColormap
-from scipy.ndimage import convolve1d
-from scipy.stats import gamma
-from matplotlib.patches import Rectangle
+import operator
 
 import numpy as np
+from scipy.stats import gamma
+from scipy.ndimage import convolve1d
 
 import matplotlib.pyplot as plt
-import operator
+from matplotlib.colors import ListedColormap
+from matplotlib.patches import Rectangle
 
 
 def compute_joint_isi(spike_train1, spike_train2, window_size=0.500, bin_size=0.001):
@@ -388,3 +388,53 @@ def psth_colormap(noise_level=0.1, ncolors=256):
             cdata.append([c, c, c])
 
     return ListedColormap(cdata, name='psth')
+
+
+def causal_smooth(spike_times, duration, bin_size=1e-3, tau=1e-3, winlen=5e-3, num_win_points=11):
+    """ Convolve a set of spike times (specified in seconds) with a causal exponential
+        filter with time constant tau.
+    """
+
+    assert num_win_points % 2 == 1
+
+    # convert the spike times to a binary vector
+    nbins = int(duration / bin_size)
+    b = np.zeros(nbins)
+    sti = (spike_times / bin_size).astype('int')
+    sti[sti < 0] = 0
+    sti[sti > nbins-1] = nbins-1
+    b[sti] = 1
+
+    # create an causal exponential window
+    x = np.linspace(-winlen, winlen, num_win_points)
+    w = np.exp(-x / tau)
+    w[x < 0] = 0
+    w /= w.sum()
+
+    return convolve1d(b, w)
+
+
+def simple_synchrony(spike_times1, spike_times2, duration, bin_size=1e-1):
+    """ Turn the two spike trains into binary vectors by binning, compute their normalized distance. Should
+        be bounded by 0 and 1. """
+
+    nbins = int(duration / bin_size)
+    b1 = np.zeros(nbins, dtype='bool')
+    b2 = np.zeros(nbins, dtype='bool')
+
+    sti1 = (spike_times1 / bin_size).astype('int')
+    sti1[sti1 < 0] = 0
+    sti1[sti1 > nbins - 1] = nbins - 1
+    b1[sti1] = True
+
+    sti2 = (spike_times2 / bin_size).astype('int')
+    sti2[sti2 < 0] = 0
+    sti2[sti2 > nbins - 1] = nbins - 1
+    b2[sti2] = True
+
+    n1 = b1.sum()
+    n2 = b2.sum()
+
+    return np.sum(b1 & b2) / np.sqrt(n1*n2)
+
+
