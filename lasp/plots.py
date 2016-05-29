@@ -12,7 +12,7 @@ from stats import compute_R2
 
 
 def multi_plot(the_data_list, plot_func, title=None, nrows=4, ncols=5, figsize=None, output_pattern=None,
-               transpose=False, facecolor='gray', hspace=0.20, wspace=0.20):
+               transpose=False, facecolor='gray', hspace=0.20, wspace=0.20, bottom=0.02, top=0.95, right=0.97, left=0.03):
 
     nsp = 0
     fig = None
@@ -46,7 +46,7 @@ def multi_plot(the_data_list, plot_func, title=None, nrows=4, ncols=5, figsize=N
                 plt.close('all')
             fig = plt.figure(figsize=figsize, facecolor=facecolor)
             fig_num += 1
-            fig.subplots_adjust(top=0.95, bottom=0.02, right=0.97, left=0.03, hspace=hspace, wspace=wspace)
+            fig.subplots_adjust(top=top, bottom=bottom, right=right, left=left, hspace=hspace, wspace=wspace)
             if title is not None:
                 plt.suptitle(title + (" (%d)" % fig_num))
 
@@ -379,10 +379,7 @@ def grouped_boxplot(data, group_names=None, subgroup_names=None, ax=None, subgro
         plt.legend(handles=leg)
 
 
-def plot_mean_from_scatter(x, y, bins=20, num_smooth_points=0,
-                           color='k', ecolor='#D8D8D8', linewidth=4., elinewidth=3.0, alpha=0.5):
-    """ For scatterplot data x,y, bin x, and plot the mean and standard error for each bin with respect to y. """
-
+def compute_mean_from_scatter(x, y, bins=20, num_smooth_points=0):
     assert len(x) == len(y)
 
     xcenter = np.zeros([bins])
@@ -390,17 +387,18 @@ def plot_mean_from_scatter(x, y, bins=20, num_smooth_points=0,
     yerr = np.zeros([bins])
 
     # bin the data, compute the mean and standard error of y for each bin
-    hist,hist_edges = np.histogram(x, bins=bins)
+    hist, hist_edges = np.histogram(x, bins=bins)
     for k in range(bins):
         start = hist_edges[k]
-        end = hist_edges[k+1]
+        end = hist_edges[k + 1]
         i = (x >= start) & (x < end)
 
         xcenter[k] = ((end - start) / 2.) + start
         # print 'k=%d, start=%f, end=%f, xcenter=%f' % (k, start, end, xcenter[k])
         ymean[k] = y[i].mean()
-        yerr[k] =  y[i].std(ddof=1) / np.sqrt(i.sum())
+        yerr[k] = y[i].std(ddof=1) / np.sqrt(i.sum())
 
+    ymean_cs = None
     if num_smooth_points > 0:
         # interpolate the mean and sd with a cubic spline and resample
         x_rs = np.linspace(xcenter.min(), xcenter.max(), num_smooth_points)
@@ -411,6 +409,14 @@ def plot_mean_from_scatter(x, y, bins=20, num_smooth_points=0,
         ymean = ymean_cs(x_rs)
         yerr = yerr_cs(x_rs)
 
+    return xcenter, ymean, yerr, ymean_cs
+
+
+def plot_mean_from_scatter(x, y, bins=20, num_smooth_points=0,
+                           color='k', ecolor='#D8D8D8', linewidth=4., elinewidth=3.0, alpha=0.5):
+    """ For scatterplot data x,y, bin x, and plot the mean and standard error for each bin with respect to y. """
+
+    xcenter,ymean,yerr,ymean_cs = compute_mean_from_scatter(x, y, bins, num_smooth_points)
     plt.errorbar(xcenter, ymean, yerr=yerr, c=color, linewidth=linewidth, elinewidth=elinewidth,
                  ecolor=ecolor, alpha=alpha, capthick=0.)
 
