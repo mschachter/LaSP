@@ -6,6 +6,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 
 from stats import compute_R2
 
@@ -376,6 +377,42 @@ def grouped_boxplot(data, group_names=None, subgroup_names=None, ax=None, subgro
     if subgroup_names is not None:
         leg = custom_legend(subgroup_colors, subgroup_names)
         plt.legend(handles=leg)
+
+
+def plot_mean_from_scatter(x, y, bins=20, num_smooth_points=0,
+                           color='k', ecolor='#D8D8D8', linewidth=4., elinewidth=3.0, alpha=0.5):
+    """ For scatterplot data x,y, bin x, and plot the mean and standard error for each bin with respect to y. """
+
+    assert len(x) == len(y)
+
+    xcenter = np.zeros([bins])
+    ymean = np.zeros([bins])
+    yerr = np.zeros([bins])
+
+    # bin the data, compute the mean and standard error of y for each bin
+    hist,hist_edges = np.histogram(x, bins=bins)
+    for k in range(bins):
+        start = hist_edges[k]
+        end = hist_edges[k+1]
+        i = (x >= start) & (x < end)
+
+        xcenter[k] = ((end - start) / 2.) + start
+        # print 'k=%d, start=%f, end=%f, xcenter=%f' % (k, start, end, xcenter[k])
+        ymean[k] = y[i].mean()
+        yerr[k] =  y[i].std(ddof=1) / np.sqrt(i.sum())
+
+    if num_smooth_points > 0:
+        # interpolate the mean and sd with a cubic spline and resample
+        x_rs = np.linspace(xcenter.min(), xcenter.max(), num_smooth_points)
+        ymean_cs = interp1d(xcenter, ymean, kind='cubic')
+        yerr_cs = interp1d(xcenter, yerr, kind='cubic')
+
+        xcenter = x_rs
+        ymean = ymean_cs(x_rs)
+        yerr = yerr_cs(x_rs)
+
+    plt.errorbar(xcenter, ymean, yerr=yerr, c=color, linewidth=linewidth, elinewidth=elinewidth,
+                 ecolor=ecolor, alpha=alpha, capthick=0.)
 
 
 if __name__ == '__main__':
