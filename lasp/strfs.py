@@ -1,7 +1,6 @@
 import time
 import numpy as np
 from sklearn.linear_model import Ridge
-import spams
 
 
 def strf_correlation(strf1, strf2, max_delay=10):
@@ -161,6 +160,11 @@ def make_toeplitz(input, lags, include_bias=True, fortran_style=False):
 
 
 def fit_strf_lasso(input, output, lags, lambda1=1.0, lambda2=1.0, num_threads=-1):
+    try:
+        import spams
+    except ImportError:
+        print 'Cannot import spams! No lasso for you...'
+        return
 
     #convert the input into a toeplitz-like matrix
     stime = time.time()
