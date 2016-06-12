@@ -379,6 +379,59 @@ def grouped_boxplot(data, group_names=None, subgroup_names=None, ax=None, subgro
         plt.legend(handles=leg)
 
 
+def boxplot_with_colors(data, group_names=None,ax=None, group_colors=None, box_width=0.6, box_spacing=1.0, box_alpha=1.):
+
+    assert isinstance(data, dict)
+
+    if group_names is None:
+        group_names = data.keys()
+    ngroups = len(data)
+
+    if group_colors is None:
+        group_colors = ['w']*ngroups
+
+    if ax is None:
+        ax = plt.gca()
+
+    def _decorate_box(_bp, _d):
+
+        plt.setp(_bp['boxes'], lw=0, color='k')
+        plt.setp(_bp['whiskers'], lw=3.0, color='k')
+
+        # fill in each box with a color
+        assert len(_bp['boxes']) == ngroups
+        for _k, _box in enumerate(_bp['boxes']):
+            _boxX = list()
+            _boxY = list()
+            for _j in range(5):
+                _boxX.append(_box.get_xdata()[_j])
+                _boxY.append(_box.get_ydata()[_j])
+            _boxCoords = zip(_boxX, _boxY)
+            _boxPolygon = plt.Polygon(_boxCoords, facecolor=group_colors[_k], alpha=box_alpha)
+            ax.add_patch(_boxPolygon)
+
+        # draw a black line for the median
+        for _k, _med in enumerate(_bp['medians']):
+            _medianX = list()
+            _medianY = list()
+            for _j in range(2):
+                _medianX.append(_med.get_xdata()[_j])
+                _medianY.append(_med.get_ydata()[_j])
+                plt.plot(_medianX, _medianY, 'k', linewidth=3.0)
+
+            # draw a black asterisk for the mean
+            plt.plot([np.mean(_med.get_xdata())], [np.mean(_d[_k])], color='w', marker='*',
+                     markeredgecolor='k', markersize=12)
+
+    pos = np.arange(ngroups) + 1
+    d = [data[gname] for gname in group_names]
+    bp = plt.boxplot(d, positions=pos, widths=box_width)
+    _decorate_box(bp, d)
+
+    plt.xlim(0.5, pos.max() + 0.5)
+    plt.xticks(pos, group_names)
+
+
 def compute_mean_from_scatter(x, y, bins=20, num_smooth_points=0):
     assert len(x) == len(y)
 

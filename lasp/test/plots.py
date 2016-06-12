@@ -1,6 +1,8 @@
 import numpy as np
 
 import matplotlib.pyplot as plt
+
+from lasp.plots import boxplot_with_colors
 from lasp.spikes import plot_raster
 
 
@@ -28,6 +30,17 @@ def test_plot_raster():
     plt.show()
 
 
+def test_boxplots_with_color():
+
+    data = {'group_1':np.random.randn(50), 'group_2':np.random.randn(50)*2, 'group_3':np.random.randn(50)-2}
+
+    plt.figure()
+    boxplot_with_colors(data, group_names=['group_1', 'group_2', 'group_3'], group_colors=['r', 'g', 'b'])
+    plt.show()
+
+
+
 if __name__ == '__main__':
-    test_plot_raster()
+    # test_plot_raster()
+    test_boxplots_with_color()
 
