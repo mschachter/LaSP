@@ -191,7 +191,7 @@ class WaveletSpectrumEstimator(ComplexSpectrumEstimator):
         return self.frequencies,z
 
 
-def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_freq=0, max_freq=None):
+def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_freq=0, max_freq=None, zero_pad=True):
     """
         Compute a time-frequency representation of the signal s.
 
@@ -223,25 +223,32 @@ def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_f
         nwinlen += 1
     hnwinlen = nwinlen / 2
 
-    nincrement = int(np.round(sample_rate*increment))
-    nwindows = len(s) / nincrement
-    # print 'len(s)=%d, nwinlen=%d, hwinlen=%d, nincrement=%d, nwindows=%d' % (len(s), nwinlen, hnwinlen, nincrement, nwindows)
-
-    #pad the signal with zeros
-    zs = np.zeros([len(s) + 2*hnwinlen])
-    zs[hnwinlen:-hnwinlen] = s
-
-    #get the values for the frequency axis by estimating the spectrum of a dummy slice
+    # get the values for the frequency axis by estimating the spectrum of a dummy slice
     full_freq = spectrum_estimator.get_frequencies(nwinlen, sample_rate)
     freq_index = (full_freq >= min_freq) & (full_freq <= max_freq)
     freq = full_freq[freq_index]
     nfreq = freq_index.sum()
 
+    nincrement = int(np.round(sample_rate*increment))
+    if zero_pad:
+        nwindows = len(s) / nincrement
+        # print 'len(s)=%d, nwinlen=%d, hwinlen=%d, nincrement=%d, nwindows=%d' % (len(s), nwinlen, hnwinlen, nincrement, nwindows)
+        #pad the signal with zeros
+        zs = np.zeros([len(s) + 2*hnwinlen])
+        zs[hnwinlen:-hnwinlen] = s
+        window_centers = np.arange(nwindows)*nincrement + hnwinlen
+    else:
+        nwindows = int(np.floor((len(s)-nwinlen) / nincrement))
+        zs = s
+        window_centers = np.arange(nwindows)*nincrement + hnwinlen
+        assert window_centers.min() >= hnwinlen
+        assert window_centers.max() < len(s)
+
     #take the FFT of each segment, padding with zeros when necessary to keep window length the same
     #tf = np.zeros([nfreq, nwindows], dtype='complex')
     tf = np.zeros([nfreq, nwindows], dtype='complex')
     for k in range(nwindows):
-        center = k*nincrement + hnwinlen
+        center = window_centers[k]
         si = center - hnwinlen
         ei = center + hnwinlen + 1
 
@@ -288,7 +295,7 @@ def generate_sliding_windows(N, sample_rate, increment, window_length):
 
 
 def gaussian_stft(s, sample_rate, window_length, increment, min_freq=0,
-                  max_freq=None, nstd=6):
+                  max_freq=None, nstd=6, zero_pad=True):
     """
         Compute a gaussian-windowed short-time fourier transform representation of the signal s.
 
@@ -309,7 +316,8 @@ def gaussian_stft(s, sample_rate, window_length, increment, min_freq=0,
     spectrum_estimator = GaussianSpectrumEstimator(nstd=nstd)
     t, freq, tf = timefreq(s, sample_rate, window_length, increment,
                            spectrum_estimator=spectrum_estimator,
-                           min_freq=min_freq, max_freq=max_freq)
+                           min_freq=min_freq, max_freq=max_freq,
+                           zero_pad=zero_pad)
     ps = np.abs(tf)
     rms = ps.sum(axis=0)
     return t, freq, tf, rms
@@ -685,7 +693,7 @@ def power_spectrum_jn(s, sample_rate, window_length, increment, min_freq=0, max_
     """
 
     t, freq, tf, rms = gaussian_stft(s, sample_rate, window_length=window_length, increment=increment,
-                                     min_freq=min_freq, max_freq=max_freq)
+                                     min_freq=min_freq, max_freq=max_freq, zero_pad=False)
     ps = np.abs(tf)**2
 
     # make leave-one-out estimates of the spectrum
