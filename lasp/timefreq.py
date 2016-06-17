@@ -222,6 +222,7 @@ def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_f
     if nwinlen % 2 == 0:
         nwinlen += 1
     hnwinlen = nwinlen / 2
+    assert len(s) > nwinlen, "len(s)=%d, nwinlen=%d" % (len(s), nwinlen)
 
     # get the values for the frequency axis by estimating the spectrum of a dummy slice
     full_freq = spectrum_estimator.get_frequencies(nwinlen, sample_rate)
@@ -238,11 +239,14 @@ def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_f
         zs[hnwinlen:-hnwinlen] = s
         window_centers = np.arange(nwindows)*nincrement + hnwinlen
     else:
-        nwindows = int(np.floor((len(s)-nwinlen) / nincrement))
+        first_window_center = hnwinlen+1
+        last_window_center = len(s)-hnwinlen
+        window_centers = np.arange(first_window_center, last_window_center, nincrement, dtype='int')
+        nwindows = len(window_centers)
+        assert nwindows > 0, "nwindows=0, len(s)=%d, nwinlen=%d, nincrement=%d, window_centers=%s" % (len(s), nwinlen, nincrement, str(window_centers))
         zs = s
-        window_centers = np.arange(nwindows)*nincrement + hnwinlen
-        assert window_centers.min() >= hnwinlen
-        assert window_centers.max() < len(s)
+        assert window_centers.min() >= hnwinlen, "window_centers.minmax=(%d,%d), hnwinlen=%d, len(s)=%d" % (window_centers.min(), window_centers.max(), hnwinlen, len(s))
+        assert window_centers.max() < len(s)-hnwinlen, "window_centers.minmax=(%d,%d), hnwinlen=%d, len(s)=%d" % (window_centers.min(), window_centers.max(), hnwinlen, len(s))
 
     #take the FFT of each segment, padding with zeros when necessary to keep window length the same
     #tf = np.zeros([nfreq, nwindows], dtype='complex')
