@@ -144,7 +144,7 @@ class WavFile():
             plt.ylabel('Envelope')
             plt.axis('tight')
             
-class BioSound():
+class BioSound(object):
     """ Class for representing a communication sound using multiple feature spaces"""
 
     def __init__(self, soundWave=np.array(0.0), fs=np.array(0.0), emitter='Unknown', calltype = 'U' ):
@@ -157,8 +157,11 @@ class BioSound():
         self.spectro = None    # Log spectrogram
         self.to = None         # Time scale for spectrogram
         self.fo = None         # Frequency scale for spectrogram
+        self.mps = None        # Modulation Power Spectrum
+        self.wf = None         # Spectral modulations
+        self.wt = None         # Temporal modulations
         self.f0 = None         # time varying fundamental
-        self.f0_2 = None      # time varying fundamental of second voice
+        self.f0_2 = None       # time varying fundamental of second voice
         self.F1 = None         # time varying formant 1
         self.F2 = None         # time varying formant 2
         self.F3 = None         # time varying formant 3
@@ -568,6 +571,7 @@ def spectrogram(s, sample_rate, spec_sample_rate, freq_spacing, min_freq=0, max_
         noise_level_db: the threshold noise level in decibels, anything below this is set to zero. unused of log=False
     """
 
+     
     increment = 1.0 / spec_sample_rate
     window_length = nstd / (2.0*np.pi*freq_spacing)
     t,freq,timefreq,rms = gaussian_stft(s, sample_rate, window_length, increment, nstd=nstd, min_freq=min_freq, max_freq=max_freq)
@@ -641,7 +645,6 @@ def sox_convert_to_mono(file_path):
     base_file_name = file_name[:-4]
     output_file_path = os.path.join(root_dir, '%s_mono.wav' % base_file_name)
     cmd = 'sox \"%s\" -c 1 \"%s\"' % (file_path, output_file_path)
-    print '%s' % cmd
     subprocess.call(cmd, shell=True)
 
 
@@ -682,6 +685,7 @@ def modulate_wave(s, samprate, freq):
 
 
 def mps(spectrogram, df, dt):
+def mtfft(spectrogram, df, dt, Norm=False, Log=False):
     """
         Compute the modulation power spectrum for a given spectrogram.
     """
@@ -689,14 +693,13 @@ def mps(spectrogram, df, dt):
     #normalize and mean center the spectrogram
     sdata = copy.copy(spectrogram)
     sdata /= sdata.max()
-    sdata -= sdata.mean()
+    if Norm:
 
     #take the 2D FFT and center it
     smps = fft2(sdata)
     smps = fftshift(smps)
 
     #compute the log amplitude
-    mps_logamp = 20*np.log10(np.abs(smps)**2)
     mps_logamp[mps_logamp < 0.0] = 0.0
 
     #compute the phase
@@ -707,6 +710,7 @@ def mps(spectrogram, df, dt):
     nt = mps_logamp.shape[1]
     spectral_freq = fftshift(fftfreq(nf, d=df))
     temporal_freq = fftshift(fftfreq(nt, d=dt))
+    temporal_freq = fftshift(fftfreq(nt, d=dt[1]-dt[0]))
 
     """
     nb = sdata.shape[1]
