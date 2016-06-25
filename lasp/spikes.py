@@ -313,7 +313,7 @@ def xcorr_hist(spike_train1, spike_train2, duration=None, window_size=0.001, sam
     return t,xhist,clow,chigh
 
 
-def spike_envelope(spike_trains, start_time, duration, bin_size=1e-3, win_size=3.0, thresh_percentile=None):
+def spike_envelope(spike_trains, start_time, duration, bin_size=1e-3, win_size=3.0, thresh_percentile=None, smooth=False):
 
     #construct empty envelope
     tlen = int(duration / bin_size)
@@ -332,10 +332,11 @@ def spike_envelope(spike_trains, start_time, duration, bin_size=1e-3, win_size=3
         #increment spike count vector
         env[sindex] += 1
 
-    #smooth the spike count vector with a gaussian
-    sct = np.linspace(-50, 50, 30)
-    scwin = np.exp(-(sct**2 / win_size**2))
-    env = convolve1d(env, scwin)
+    if smooth:
+        #smooth the spike count vector with a gaussian
+        sct = np.linspace(-50, 50, 30)
+        scwin = np.exp(-(sct**2 / win_size**2))
+        env = convolve1d(env, scwin)
 
     #normalize the envelope
     env /= env.max()
@@ -346,7 +347,6 @@ def spike_envelope(spike_trains, start_time, duration, bin_size=1e-3, win_size=3
         thresh = np.percentile(env, thresh_percentile)
         print 'spike_envelope threshold: %f' % thresh
         env[env < thresh] = 0.0
-
 
     return env
 
