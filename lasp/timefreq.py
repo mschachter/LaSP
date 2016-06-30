@@ -6,7 +6,7 @@ import copy
 import numpy as np
 import pandas as pd
 
-from scipy.fftpack import fft,fftfreq
+from scipy.fftpack import fft,fftfreq, ifft
 from scipy.signal import hilbert
 from scipy.interpolate import RectBivariateSpline
 
@@ -493,6 +493,66 @@ def bandpass_timefreq(s, frequencies, sample_rate):
     return np.array(tf_freqs),tf_raw,tf
 
 
+def gaussian_bandpass_analytic(s, sample_rate, frequencies, bandwidths, round=True):
+    """ Compute the analytic signal in a set of bandpass channels
+    :param s: the raw signal
+    :param sample_rate: the signal's sample_rate
+    :param frequencies: a list of center frequencies for gaussian filters
+    :param bandwidths: a list of bandwidths for gaussian filters
+    :param round: pad with zeros to next multiple of 2. Since we are doing so many iffts, this can speed things up a lot.
+
+    :return analytic_signal: an array of dimension len(frequencies) * len(s)
+    """
+
+    if isinstance(bandwidths, (int, float)):
+        bandwidths = [bandwidths]
+    if len(bandwidths) != len(frequencies):
+        if len(bandwidths) == 1:
+            bandwidths = list(bandwidths) * len(frequencies)
+        else:
+            raise ValueError("bandwidths should be the same length as frequencies")
+
+    # Enforce even window_length to have a symmetric window
+    window_length = np.fix(np.fix(6 * sample_rate / (min(bandwidths) * 2.0 * np.pi)) / 2) * 2;
+
+    if round:
+        pow2_length = 2 ** np.ceil(np.log2(len(s) + window_length))
+        window_length = (pow2_length - len(s)) / 2
+
+    # Pad the input with zeros
+    padded = np.pad(s,
+                    (int(window_length / 2), int(np.ceil(window_length / 2))),
+                    'constant')
+    input_length = len(padded)
+    input_start = int(window_length / 2)
+
+    # Assign space for output
+    analytic_signal = np.zeros((len(frequencies), len(s)), dtype=np.complex128)
+
+    # Digital filtering
+    spectrum = fft(padded)
+    fft_freqs = fftfreq(input_length, d=(1.0 / sample_rate))
+    nonzero_inds = fft_freqs >= 0
+    positive_inds = fft_freqs > 0
+    frequency_filter = np.zeros_like(spectrum)
+
+    for ii, (freq, bw) in enumerate(zip(frequencies, bandwidths)):
+
+        # Create the digital filter for this band
+        frequency_filter[nonzero_inds] = np.exp(-0.5 * (fft_freqs[nonzero_inds] - freq) ** 2 / float(bw) ** 2)
+        # Compute the filtered spectrum
+        filtered_spectrum = frequency_filter * spectrum
+        # Double the values of the positive frequencies for the analytic signal
+        filtered_spectrum[positive_inds] *= 2
+
+        # Compute the analytic signal
+        bfinput = ifft(filtered_spectrum)
+        # Remove the padding
+        analytic_signal[ii] = bfinput[input_start: input_start + len(s)]
+
+    return analytic_signal
+
+
 def resample_spectrogram(t, freq, spec, dt_new, df_new):
 
     #print 'len(t)=%d, len(freq)=%d, spec.shape=(%d, %d)' % (len(t), len(freq), spec.shape[0], spec.shape[1])
@@ -592,6 +652,8 @@ def define_f_bands(stt=180, stp=7000, n_bands=32, kind='log'):
     '''
     if kind == 'log':
         aud_fs = np.logspace(np.log10(stt), np.log10(stp), n_bands).astype(int)
+    elif kind == 'lin':
+        aud_fs = np.linspace(stt, stp, n_bands).astype(int)
     elif kind == 'erb':
         aud_fs = hears.erbspace(stt*Hz, stp*Hz, n_bands)
     else:
