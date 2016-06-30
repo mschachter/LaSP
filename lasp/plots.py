@@ -1,18 +1,18 @@
 import copy
 import operator
-import husl
 from matplotlib import patches
 from matplotlib.colors import LinearSegmentedColormap
 
 import numpy as np
 
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 
 from stats import compute_R2
 
 
 def multi_plot(the_data_list, plot_func, title=None, nrows=4, ncols=5, figsize=None, output_pattern=None,
-               transpose=False, facecolor='gray', hspace=0.20, wspace=0.20):
+               transpose=False, facecolor='gray', hspace=0.20, wspace=0.20, bottom=0.02, top=0.95, right=0.97, left=0.03):
 
     nsp = 0
     fig = None
@@ -46,7 +46,7 @@ def multi_plot(the_data_list, plot_func, title=None, nrows=4, ncols=5, figsize=N
                 plt.close('all')
             fig = plt.figure(figsize=figsize, facecolor=facecolor)
             fig_num += 1
-            fig.subplots_adjust(top=0.95, bottom=0.02, right=0.97, left=0.03, hspace=hspace, wspace=wspace)
+            fig.subplots_adjust(top=top, bottom=bottom, right=right, left=left, hspace=hspace, wspace=wspace)
             if title is not None:
                 plt.suptitle(title + (" (%d)" % fig_num))
 
@@ -200,6 +200,8 @@ def make_phase_image(amp, phase, normalize=True, saturate=True, threshold=True):
         Turns a phase matrix into an image to be plotted with imshow.
     """
 
+    import husl
+
     nelectrodes,d = amp.shape
     alpha = copy.deepcopy(amp)
     if normalize:
@@ -230,6 +232,8 @@ def draw_husl_circle():
         it's useful for plotting phase. This figure could serve as a "color circle" as opposed to a color bar.
     """
 
+    import husl
+
     #generate a bunch of points on the circle
     theta = np.arange(0.0, 2*np.pi, 1e-3)
 
@@ -250,6 +254,8 @@ def draw_husl_circle():
 
 
 def register_husl_colormap(nsegs=90):
+
+    import husl
 
     cdict = {'red':list(), 'green':list(), 'blue':list()}
 
@@ -371,6 +377,101 @@ def grouped_boxplot(data, group_names=None, subgroup_names=None, ax=None, subgro
     if subgroup_names is not None:
         leg = custom_legend(subgroup_colors, subgroup_names)
         plt.legend(handles=leg)
+
+
+def boxplot_with_colors(data, group_names=None,ax=None, group_colors=None, box_width=0.6, box_spacing=1.0, box_alpha=1.):
+
+    assert isinstance(data, dict)
+
+    if group_names is None:
+        group_names = data.keys()
+    ngroups = len(data)
+
+    if group_colors is None:
+        group_colors = ['w']*ngroups
+
+    if ax is None:
+        ax = plt.gca()
+
+    def _decorate_box(_bp, _d):
+
+        plt.setp(_bp['boxes'], lw=0, color='k')
+        plt.setp(_bp['whiskers'], lw=3.0, color='k')
+
+        # fill in each box with a color
+        assert len(_bp['boxes']) == ngroups
+        for _k, _box in enumerate(_bp['boxes']):
+            _boxX = list()
+            _boxY = list()
+            for _j in range(5):
+                _boxX.append(_box.get_xdata()[_j])
+                _boxY.append(_box.get_ydata()[_j])
+            _boxCoords = zip(_boxX, _boxY)
+            _boxPolygon = plt.Polygon(_boxCoords, facecolor=group_colors[_k], alpha=box_alpha)
+            ax.add_patch(_boxPolygon)
+
+        # draw a black line for the median
+        for _k, _med in enumerate(_bp['medians']):
+            _medianX = list()
+            _medianY = list()
+            for _j in range(2):
+                _medianX.append(_med.get_xdata()[_j])
+                _medianY.append(_med.get_ydata()[_j])
+                plt.plot(_medianX, _medianY, 'k', linewidth=3.0)
+
+            # draw a black asterisk for the mean
+            plt.plot([np.mean(_med.get_xdata())], [np.mean(_d[_k])], color='w', marker='*',
+                     markeredgecolor='k', markersize=12)
+
+    pos = np.arange(ngroups) + 1
+    d = [data[gname] for gname in group_names]
+    bp = plt.boxplot(d, positions=pos, widths=box_width)
+    _decorate_box(bp, d)
+
+    plt.xlim(0.5, pos.max() + 0.5)
+    plt.xticks(pos, group_names)
+
+
+def compute_mean_from_scatter(x, y, bins=20, num_smooth_points=0):
+    assert len(x) == len(y)
+
+    xcenter = np.zeros([bins])
+    ymean = np.zeros([bins])
+    yerr = np.zeros([bins])
+
+    # bin the data, compute the mean and standard error of y for each bin
+    hist, hist_edges = np.histogram(x, bins=bins)
+    for k in range(bins):
+        start = hist_edges[k]
+        end = hist_edges[k + 1]
+        i = (x >= start) & (x < end)
+
+        xcenter[k] = ((end - start) / 2.) + start
+        # print 'k=%d, start=%f, end=%f, xcenter=%f' % (k, start, end, xcenter[k])
+        ymean[k] = y[i].mean()
+        yerr[k] = y[i].std(ddof=1) / np.sqrt(i.sum())
+
+    ymean_cs = None
+    if num_smooth_points > 0:
+        # interpolate the mean and sd with a cubic spline and resample
+        x_rs = np.linspace(xcenter.min(), xcenter.max(), num_smooth_points)
+        ymean_cs = interp1d(xcenter, ymean, kind='cubic')
+        yerr_cs = interp1d(xcenter, yerr, kind='cubic')
+
+        xcenter = x_rs
+        ymean = ymean_cs(x_rs)
+        yerr = yerr_cs(x_rs)
+
+    return xcenter, ymean, yerr, ymean_cs
+
+
+def plot_mean_from_scatter(x, y, bins=20, num_smooth_points=0,
+                           color='k', ecolor='#D8D8D8', linewidth=4., elinewidth=3.0, alpha=0.5):
+    """ For scatterplot data x,y, bin x, and plot the mean and standard error for each bin with respect to y. """
+
+    xcenter,ymean,yerr,ymean_cs = compute_mean_from_scatter(x, y, bins, num_smooth_points)
+    plt.errorbar(xcenter, ymean, yerr=yerr, c=color, linewidth=linewidth, elinewidth=elinewidth,
+                 ecolor=ecolor, alpha=alpha, capthick=0.)
 
 
 if __name__ == '__main__':
