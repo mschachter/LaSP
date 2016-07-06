@@ -7,8 +7,9 @@ from numpy.fft import fftfreq
 from scipy.fftpack import fft
 from scipy.ndimage import convolve1d
 
+from lasp.sound import plot_spectrogram
 from lasp.thirdparty.transform import WaveletAnalysis
-from lasp.timefreq import wavelet_scalogram
+from lasp.timefreq import wavelet_scalogram, gaussian_stft
 
 
 class WaveletTest(TestCase):
@@ -21,17 +22,19 @@ class WaveletTest(TestCase):
 
     def test_delta(self):
 
-        dur = 20.
+        dur = 30.
         sample_rate = 1e3
         nt = int(dur*sample_rate)
         t = np.arange(nt) / sample_rate
-        freqs = np.linspace(0.5, 4., nt)
+        freqs = np.linspace(0.5, 1.5, nt)
+        # freqs = np.ones_like(t)*2.
         s = np.sin(2*np.pi*freqs*t)
 
         center_freqs = np.arange(0.5, 4.5, 0.5)
 
         psi = lambda _t, _f, _bw: (np.pi * _bw**2) ** (-0.5) * np.exp(2 * np.pi * complex(0, 1) * _f * _t) * np.exp(-_t ** 2 / _bw**2)
 
+        """
         scalogram = np.zeros([len(center_freqs), nt])
         bandwidth = 1.
         nstd = 6
@@ -41,6 +44,12 @@ class WaveletTest(TestCase):
         for k,f in enumerate(center_freqs):
             w = psi(wt, f, bandwidth)
             scalogram[k, :] = convolve1d(s, w)
+        """
+
+        win_len = 2.
+        spec_t,spec_freq,spec,spec_rms = gaussian_stft(s, sample_rate, win_len, 100e-3)
+
+        fi = (spec_freq < 10) & (spec_freq > 0)
 
         plt.figure()
         gs = plt.GridSpec(100, 1)
@@ -56,8 +65,11 @@ class WaveletTest(TestCase):
         T, S = np.meshgrid(t, scales)
         # ax.contourf(T, S, power, 100)
         # ax.set_yscale('log')
-        plt.imshow(np.abs(scalogram)**2, interpolation='nearest', aspect='auto', cmap=plt.cm.afmhot_r, origin='lower',
-                   extent=[t.min(), t.max(), min(center_freqs), max(center_freqs)])
+        # plt.imshow(np.abs(scalogram)**2, interpolation='nearest', aspect='auto', cmap=plt.cm.afmhot_r, origin='lower',
+        #            extent=[t.min(), t.max(), min(center_freqs), max(center_freqs)])
+        plot_spectrogram(spec_t, spec_freq[fi], np.abs(spec[fi, :])**2, ax=ax, colorbar=False, colormap=plt.cm.afmhot_r)
+        plt.plot(t, freqs, 'k-', alpha=0.7, linewidth=4.0)
+        plt.axis('tight')
         plt.show()
 
     """
