@@ -7,7 +7,6 @@ import subprocess
 import wave
 import struct
 import hashlib
-import pyaudio
 import h5py
 
 import numpy as np
@@ -515,6 +514,8 @@ def play_sound(file_name):
 
 def play_wavfile(filename):
 
+    import pyaudio
+
     chunk_size = 1024
 
     wf = wave.open(filename, "r")
@@ -539,6 +540,9 @@ def play_sound_array(data, sample_rate):
     ''' Requires pyaudio package. Can be downloaded here
     http://people.csail.mit.edu/hubert/pyaudio/
     '''
+
+    import pyaudio
+
     # Only play one channel
     if len(data.shape) > 1:
         data = np.mean(data, axis=np.argmin(data.shape))
