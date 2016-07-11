@@ -570,8 +570,8 @@ def spectrogram(s, sample_rate, spec_sample_rate, freq_spacing, min_freq=0, max_
         log: whether or not to take the log of th power and convert to decibels, defaults to True
         noise_level_db: the threshold noise level in decibels, anything below this is set to zero. unused of log=False
     """
-
      
+    # We need units here!!
     increment = 1.0 / spec_sample_rate
     window_length = nstd / (2.0*np.pi*freq_spacing)
     t,freq,timefreq,rms = gaussian_stft(s, sample_rate, window_length, increment, nstd=nstd, min_freq=min_freq, max_freq=max_freq)
@@ -645,6 +645,7 @@ def sox_convert_to_mono(file_path):
     base_file_name = file_name[:-4]
     output_file_path = os.path.join(root_dir, '%s_mono.wav' % base_file_name)
     cmd = 'sox \"%s\" -c 1 \"%s\"' % (file_path, output_file_path)
+    print cmd
     subprocess.call(cmd, shell=True)
 
 
@@ -684,32 +685,34 @@ def modulate_wave(s, samprate, freq):
     return c*s
 
 
-def mps(spectrogram, df, dt):
 def mtfft(spectrogram, df, dt, Norm=False, Log=False):
     """
-        Compute the modulation power spectrum for a given spectrogram.
+        Compute the 2d modulation transfer function for a given time frequency slice.
+        return temporal_freq,spectral_freq,mps_pow,mps_phase
     """
-
-    #normalize and mean center the spectrogram
+    #normalize and mean center the spectrogram 
     sdata = copy.copy(spectrogram)
-    sdata /= sdata.max()
     if Norm:
+        sdata /= sdata.max()
+        sdata -= sdata.mean()
 
     #take the 2D FFT and center it
     smps = fft2(sdata)
     smps = fftshift(smps)
 
     #compute the log amplitude
-    mps_logamp[mps_logamp < 0.0] = 0.0
+    mps_pow = np.abs(smps)**2
+    if Log:
+        mps_pow = 10*np.log10(mps_pow)
 
     #compute the phase
     mps_phase = np.angle(smps)
 
     #compute the axes
-    nf = mps_logamp.shape[0]
-    nt = mps_logamp.shape[1]
-    spectral_freq = fftshift(fftfreq(nf, d=df))
-    temporal_freq = fftshift(fftfreq(nt, d=dt))
+    nf = mps_pow.shape[0]
+    nt = mps_pow.shape[1]
+
+    spectral_freq = fftshift(fftfreq(nf, d=df[1]-df[0]))
     temporal_freq = fftshift(fftfreq(nt, d=dt[1]-dt[0]))
 
     """
@@ -718,7 +721,7 @@ def mtfft(spectrogram, df, dt, Norm=False, Log=False):
     for ib in range(int(np.ceil((nb+1)/2.0))+1):
         posindx = ib
         negindx = nb-ib+2
-        print 'ib=%d, posindx=%d, negindx=%d' % (ib, posindx, negindx)
+        print 'ib=%d, posindx=%d, negindx=%d'% (ib, posindx, negindx )
         dwf[ib]= (ib-1)*(1.0/(df*nb))
         if ib > 1:
             dwf[negindx] =- dwf[ib]
@@ -737,30 +740,102 @@ def mtfft(spectrogram, df, dt, Norm=False, Log=False):
     temporal_freq = dwt
     """
 
-    return temporal_freq,spectral_freq,mps_logamp,mps_phase
+    return spectral_freq, temporal_freq, mps_pow, mps_phase
+
+def mps(spectrogram, df, dt, window=None, Norm=True):
+    """
+    Calculates the modulation power spectrum using overlapp and add method with a gaussian window of length window in s
+    """
+    # Check the size of the spectrogram vs dt
+    nt = dt.size
+    nf = df.size
+    if spectrogram.shape[1] != nt and spectrogram.shape[0] != nf:   
+        print 'Error in mps. Expected  %d bands in frequency and %d points in time' % (nf, nt)
+        print 'Spectrogram had shape %d, %d' % spectrogram.shape
+        return 0, 0, 0
+        
+    # Z-score the flattened spectrogram
+    if Norm:
+        spectrogram -= spectrogram.mean()
+        spectrogram /= spectrogram.std()
+        
+    if window == None:
+        window = dt[-1]/10.0
+            
+    # Find the number of spectrogram points in the gaussian window 
+    if dt[-1] < window:
+        print 'Warning in mps: window size is smaller or equal to spectrogram temporal extent.'
+        print 'mps will be calculate with a single window'
+        nWindow = nt - 1
+    else:
+        nWindow = mlab.find(dt>= window)[0]
+    if nWindow%2 == 0:
+        nWindow += 1  # Make it odd size so that we have a symmetric window
+        
+    if nWindow < 64:
+        print 'Error in mps: window size %d pts (%.3.f s) is two small for reasonable estimates' % (nWindow, window)
+        return 0, 0, 0
+        
+    # Generate the Gaussian window
+    gt, w = gaussian_window(nWindow, 6)
+    tShift = int(gt[-1]/3)
+    nchunks = 0
+    
+    for tmid in range(tShift, nt, tShift):
+        
+        # No zero padding at this point this could be better
+        tstart = tmid-(nWindow-1)/2-1
+        if tstart < 0:
+            continue
+                       
+        tend = tmid+(nWindow-1)/2
+        if tend > nt:
+            break
+        nchunks += 1
+        
+        # Multiply the spectrogram by the window
+        wSpect = spectrogram[:,tstart:tend]
+        for fInd in range(nf):
+            wSpect[fInd,:] = wSpect[fInd,:]*w
+            
+        # Get the 2d FFT
+        wf, wt, mps_pow,mps_phase = mtfft(wSpect, df, dt[tstart:tend])
+        if nchunks == 1:
+            mps_powAvg = mps_pow
+        else:
+            mps_powAvg += mps_pow
+            
+    mps_powAvg /= nchunks
+    
+    return wf, wt, mps_powAvg
 
 
-def plot_mps(temporal_freq, spectral_freq, amp, phase):
+def plot_mps(spectral_freq, temporal_freq, amp, phase=None):
 
     plt.figure()
 
     #plot the amplitude
-    plt.subplot(2, 1, 1)
+    if phase:
+        plt.subplot(2, 1, 1)
+        
     #ex = (spectral_freq.min(), spectral_freq.max(), temporal_freq.min(), temporal_freq.max())
     ex = (temporal_freq.min(), temporal_freq.max(), spectral_freq.min()*1e3, spectral_freq.max()*1e3)
-    plt.imshow(amp, interpolation='nearest', aspect='auto', cmap=cmap.jet, extent=ex)
+    plt.imshow(amp, interpolation='nearest', aspect='auto', origin='lower', cmap=cmap.jet, extent=ex)
     plt.ylabel('Spectral Frequency (Cycles/KHz)')
     plt.xlabel('Temporal Frequency (Hz)')
     plt.colorbar()
-    plt.title('Magnitude')
+    plt.ylim((0,spectral_freq.max()*1e3))
+    plt.title('Power')
 
     #plot the phase
-    plt.subplot(2, 1, 2)
-    plt.imshow(phase, interpolation='nearest', aspect='auto', cmap=cmap.jet, extent=ex)
-    plt.ylabel('Spectral Frequency (Cycles/KHz)')
-    plt.xlabel('Temporal Frequency (Hz)')
-    plt.title('Phase')
-    plt.colorbar()
+    if phase:
+        plt.subplot(2, 1, 2)
+        plt.imshow(phase, interpolation='nearest', aspect='auto', origin='lower', cmap=cmap.jet, extent=ex)
+        plt.ylabel('Spectral Frequency (Cycles/KHz)')
+        plt.xlabel('Temporal Frequency (Hz)')
+        plt.ylim((0,spectral_freq.max()*1e3))
+        plt.title('Phase')
+        plt.colorbar()
 
 def synSpect(b, x):
 # Generates a model spectrum made out of gaussian peaks
@@ -826,7 +901,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
     soundLen = len(soundIn)
     nfilt = 1024
     if soundLen < 1024:
-        print 'Error in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d\n' % soundLen
+        print 'Error in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d' % soundLen
         return (0, 0, 0, 0, 0, 0, 0)
 
     # high pass filter the signal
@@ -1362,7 +1437,7 @@ def inverse_real_spectrogram(spec, s_len,
     for i in range(iterations):
         phase_spec = spectrogram(estimated, sample_rate, spec_sample_rate, freq_spacing, min_freq, max_freq, nstd, log=False)[2]
         error = ((abs(spec_magnitude) - abs(phase_spec))**2).sum() / (abs(spec_magnitude)**2).sum()
-        print "the error after iteration", i+1, " is", error
+        print 'the error after iteration %d is %f' % (i+i, error)
         spec_angle = np.angle(phase_spec)
         estimated_spec = spec_magnitude * np.exp(1j*spec_angle)
         estimated = inverse_spectrogram(estimated_spec, s_len, sample_rate, spec_sample_rate, freq_spacing, min_freq, max_freq, nstd, log=False)
