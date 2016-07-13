@@ -474,6 +474,12 @@ def plot_mean_from_scatter(x, y, bins=20, num_smooth_points=0,
                  ecolor=ecolor, alpha=alpha, capthick=0.)
 
 
+def plot_x_samps(x, y=0.):
+    """ Plot ticks along the x axis at the bottom of a plot, one tick per sample. """
+
+    plt.plot()
+
+
 if __name__ == '__main__':
 
     # draw_husl_circle()
