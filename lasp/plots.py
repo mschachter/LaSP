@@ -432,7 +432,7 @@ def boxplot_with_colors(data, group_names=None,ax=None, group_colors=None, box_w
     plt.xticks(pos, group_names)
 
 
-def compute_mean_from_scatter(x, y, bins=20, num_smooth_points=0):
+def compute_mean_from_scatter(x, y, bins=20, num_smooth_points=0, bin_by_quantile=False):
     assert len(x) == len(y)
 
     xcenter = np.zeros([bins])
@@ -440,7 +440,19 @@ def compute_mean_from_scatter(x, y, bins=20, num_smooth_points=0):
     yerr = np.zeros([bins])
 
     # bin the data, compute the mean and standard error of y for each bin
-    hist, hist_edges = np.histogram(x, bins=bins)
+    if bin_by_quantile:
+        p = 100. / (bins + 1)
+        hist_edges = list([np.percentile(x, int((k + 1) * p)) for k in range(bins-1)])
+        if len(np.unique(hist_edges)) != len(hist_edges):
+            '[compute_mean_from_scatter] number of unique quantiles is less than the number of bins, defaulting to use hist'
+            hist, hist_edges = np.histogram(x, bins=bins)
+        else:
+            hist_edges.insert(0, x.min())
+            hist_edges.append(x.max())
+            hist = None # unused
+    else:
+        hist, hist_edges = np.histogram(x, bins=bins)
+
     for k in range(bins):
         start = hist_edges[k]
         end = hist_edges[k + 1]
