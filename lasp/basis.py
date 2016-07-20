@@ -142,18 +142,19 @@ class RadialBasis1D(object):
         plt.colorbar()
 
 
-def cubic_spline_basis(x, num_knots=3):
-    
-    p = 100. / (num_knots + 1)
-    knots = np.array([np.percentile(x, int((k + 1) * p)) for k in range(num_knots)])
-    assert knots.min() >= x.min()
-    assert knots.max() <= x.max()
-    if len(np.unique(knots)) != len(knots):
-        print '[cubic_spline_basis] number of unique kernels is less than the degrees of freedom, trying wider knot spacing (q10, q50, q90)'
-        num_knots = 3
-        knots = [np.percentile(x, 10), np.percentile(x, 50), np.percentile(x, 90)]
-    assert len(np.unique(knots)) == len(knots), '# of unique kernels is less than the degrees of freedom!'
+def cubic_spline_basis(x, num_knots=3, return_knots=False, knots=None):
 
+    if knots is None:
+        p = 100. / (num_knots + 1)
+        knots = np.array([np.percentile(x, int((k + 1) * p)) for k in range(num_knots)])
+        assert knots.min() >= x.min()
+        assert knots.max() <= x.max()
+        if len(np.unique(knots)) != len(knots):
+            print '[cubic_spline_basis] number of unique kernels is less than the degrees of freedom, trying wider knot spacing (q10, q50, q90)'
+            knots = [np.percentile(x, 10), np.percentile(x, 50), np.percentile(x, 90)]
+        assert len(np.unique(knots)) == len(knots), '# of unique kernels is less than the degrees of freedom!'
+
+    num_knots = len(knots)
     df = num_knots+3
     B = np.zeros([len(x), df])
     for k in range(3):
@@ -163,6 +164,8 @@ def cubic_spline_basis(x, num_knots=3):
         i = x > knots[k]
         B[i, k+3] = (x[i]-knots[k])**3
 
+    if return_knots:
+        return B,knots
     return B
 
 
