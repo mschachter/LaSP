@@ -300,7 +300,7 @@ def custom_legend(colors, labels, linestyles=None):
 
 
 def grouped_boxplot(data, group_names=None, subgroup_names=None, ax=None, subgroup_colors=None,
-                    box_width=0.6, box_spacing=1.0):
+                    box_width=0.6, box_spacing=1.0, legend_loc='upper right'):
     """ Draws a grouped boxplot. The data should be organized in a hierarchy, where there are multiple
         subgroups for each main group.
 
@@ -376,7 +376,7 @@ def grouped_boxplot(data, group_names=None, subgroup_names=None, ax=None, subgro
 
     if subgroup_names is not None:
         leg = custom_legend(subgroup_colors, subgroup_names)
-        plt.legend(handles=leg)
+        plt.legend(handles=leg, loc=legend_loc)
 
 
 def boxplot_with_colors(data, group_names=None,ax=None, group_colors=None, box_width=0.6, box_spacing=1.0, box_alpha=1.):
@@ -478,10 +478,11 @@ def compute_mean_from_scatter(x, y, bins=20, num_smooth_points=0, bin_by_quantil
 
 
 def plot_mean_from_scatter(x, y, bins=20, num_smooth_points=0,
-                           color='k', ecolor='#D8D8D8', linewidth=4., elinewidth=3.0, alpha=0.5):
+                           color='k', ecolor='#D8D8D8', linewidth=4., elinewidth=3.0, alpha=0.5,
+                           bin_by_quantile=False):
     """ For scatterplot data x,y, bin x, and plot the mean and standard error for each bin with respect to y. """
 
-    xcenter,ymean,yerr,ymean_cs = compute_mean_from_scatter(x, y, bins, num_smooth_points)
+    xcenter,ymean,yerr,ymean_cs = compute_mean_from_scatter(x, y, bins, num_smooth_points, bin_by_quantile=bin_by_quantile)
     plt.errorbar(xcenter, ymean, yerr=yerr, c=color, linewidth=linewidth, elinewidth=elinewidth,
                  ecolor=ecolor, alpha=alpha, capthick=0.)
 
