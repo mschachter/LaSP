@@ -507,21 +507,20 @@ def plot_spectrogram(t, freq, spec, ax=None, ticks=True, fmin=None, fmax=None, c
         fmax = freq.max()
 
     ex = (t.min(), t.max(), freq.min(), freq.max())
-    plotSpect = np.abs()
+    plotSpect = np.abs(spec)
+    
     
     if log == True:
         plotSpect = 20*np.log10(plotSpect)
         maxB = plotSpect.max()
-        minB = maxB-DBNOISE
+        minB = maxB-dBNoise
     else:
         maxB = 20*np.log10(plotSpect.max())
-        minB = np.pow((maxB-DBNoise)/20, 10)
+        minB = np.pow((maxB-dBNoise)/20, 10)
         
-
-        
-    plt.imshow(soundSpect, extent = (self.to[0]*1000, self.to[-1]*1000, self.fo[0], self.fo[-1]), aspect='auto', interpolation='nearest', origin='lower', cmap=cmap, vmin=minB, vmax=maxB)
-    
-    iax = ax.imshow(spec, aspect='auto', interpolation='nearest', origin='lower', extent=ex, cmap=colormap, vmin=vmin, vmax=vmax)
+    plotSpect[plotSpect < minB] = minB
+                
+    iax = ax.imshow(plotSpect, aspect='auto', interpolation='nearest', origin='lower', extent=ex, cmap=colormap, vmin=minB, vmax=maxB)
     plt.ylim(fmin, fmax)
     if not ticks:
         ax.set_xticks([])
