@@ -26,7 +26,7 @@ from lasp.timefreq import gaussian_stft
 from lasp.detect_peaks import *
 
 
-class WavFile()
+class WavFile():
     """ Class for representing a sound and writing it to a .wav file """
 
     def __init__(self, file_name=None, log_spectrogram=True):
