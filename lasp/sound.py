@@ -11,7 +11,7 @@ import h5py
 
 import numpy as np
 from scipy.io.wavfile import read as read_wavfile
-from scipy.fftpack import fft,ifft,fftfreq,fft2,ifft2,dct
+from scipy.fftpack import fft, ifft, fftfreq, fft2, ifft2, dct
 from scipy.signal import resample, firwin, filtfilt
 from scipy.optimize import leastsq
 
@@ -26,7 +26,7 @@ from lasp.timefreq import gaussian_stft
 from lasp.detect_peaks import *
 
 
-class WavFile():
+class WavFile()
     """ Class for representing a sound and writing it to a .wav file """
 
     def __init__(self, file_name=None, log_spectrogram=True):
@@ -49,15 +49,14 @@ class WavFile():
                 self.data = data
             else:
                 self.data = data.mean(axis=1)
-                
-            
+
         self.analyzed = False
 
     def to_wav(self, output_file, normalize=False, max_amplitude=32767.0):
         wf = wave.open(output_file, 'w')
 
-        wf.setparams( (self.num_channels, self.sample_depth, self.sample_rate, len(self.data), 'NONE', 'not compressed') )
-        #normalize the sample
+        wf.setparams(self.num_channels, self.sample_depth, self.sample_rate, len(self.data), 'NONE', 'not compressed')
+        # normalize the sample
         if normalize:
             nsound = ((self.data / np.abs(self.data).max())*max_amplitude).astype('int')
         else:
@@ -97,8 +96,7 @@ class WavFile():
 
         #compute log spectrogram
         t,f,spec,spec_rms = spectrogram(self.data, self.sample_rate, spec_sample_rate=spec_sample_rate,
-                                        freq_spacing=freq_spacing, min_freq=min_freq, max_freq=max_freq,
-                                        log=self.log_spectrogram, noise_level_db=noise_level_db, rectify=rectify, cmplx=cmplx)
+                                        freq_spacing=freq_spacing, min_freq=min_freq, max_freq=max_freq)
         self.spectrogram_t = t
         self.spectrogram_f = f
         self.spectrogram = spec
@@ -266,14 +264,24 @@ class BioSound(object):
         self.psd = spectdata
         
     def spectroCalc(self, spec_sample_rate=1000, freq_spacing = 50, min_freq=0, max_freq=10000, noise_level_db=80):
-        
+        # Calculates the spectrogram in dB
         t,f,spec,spec_rms = spectrogram(self.sound, self.samprate, spec_sample_rate=spec_sample_rate,
                                         freq_spacing=freq_spacing, min_freq=min_freq, max_freq=max_freq,
-                                        log=1, noise_level_db=noise_level_db, rectify=True, cmplx=False)
+                                        cmplx=True)
         self.to = t
         self.fo = f
-        self.spectro = spec
+        self.spectro = 20*np.log10(np.abs(spec))
 
+    def mpsCalc(self, window=None, Norm=True): 
+        
+        if self.spectro == None:
+            self.spectroCalc()
+            
+        wf, wt, mps_powAvg = mps(self.spectro, self.fo, self.to, window=window, Norm=Norm)
+        self.mps = mps_powAvg        # Modulation Power Spectrum
+        self.wf = wf         # Spectral modulations
+        self.wt = wt
+        
         
     def ampenv(self):
     # Calculates the amplitude enveloppe and related parameters
@@ -484,7 +492,12 @@ def spec_colormap():
     spec_cmap = pltcolors.ListedColormap(cmap, name=u'SpectroColorMap', N=64)
     plt.register_cmap(cmap=spec_cmap)
 
-def plot_spectrogram(t, freq, spec, ax=None, ticks=True, fmin=None, fmax=None, colormap=cmap.jet, colorbar=True, vmin=None, vmax=None):
+def plot_spectrogram(t, freq, spec, ax=None, ticks=True, fmin=None, fmax=None, colormap=None, colorbar=True, log = True, dBNoise = 50):
+    
+    if colormap == None:
+        spec_colormap()
+        colormap = plt.get_cmap('SpectroColorMap')
+        
     if ax is None:
         ax = plt.gca()
 
@@ -494,10 +507,20 @@ def plot_spectrogram(t, freq, spec, ax=None, ticks=True, fmin=None, fmax=None, c
         fmax = freq.max()
 
     ex = (t.min(), t.max(), freq.min(), freq.max())
-    if vmin is None:
-        vmin = spec.min()
-    if vmax is None:
-        vmax = spec.max()
+    plotSpect = np.abs()
+    
+    if log == True:
+        plotSpect = 20*np.log10(plotSpect)
+        maxB = plotSpect.max()
+        minB = maxB-DBNOISE
+    else:
+        maxB = 20*np.log10(plotSpect.max())
+        minB = np.pow((maxB-DBNoise)/20, 10)
+        
+
+        
+    plt.imshow(soundSpect, extent = (self.to[0]*1000, self.to[-1]*1000, self.fo[0], self.fo[-1]), aspect='auto', interpolation='nearest', origin='lower', cmap=cmap, vmin=minB, vmax=maxB)
+    
     iax = ax.imshow(spec, aspect='auto', interpolation='nearest', origin='lower', extent=ex, cmap=colormap, vmin=vmin, vmax=vmax)
     plt.ylim(fmin, fmax)
     if not ticks:
@@ -563,12 +586,13 @@ def play_sound_array(data, sample_rate):
     p.terminate()
 
 
-def spectrogram(s, sample_rate, spec_sample_rate, freq_spacing, min_freq=0, max_freq=None, nstd=6, log=True, noise_level_db=80, rectify=True, cmplx = True):
+def spectrogram(s, sample_rate, spec_sample_rate, freq_spacing, min_freq=0, max_freq=None, nstd=6,  cmplx = True):
     """
-        Given a sound pressure waveform, compute the log spectrogram. See documentation on gaussian_stft for arguments and return values.
+        Given a sound pressure waveform, compute the complex spectrogram. See documentation on gaussian_stft for arguments and return values.
 
-        log: whether or not to take the log of th power and convert to decibels, defaults to True
-        noise_level_db: the threshold noise level in decibels, anything below this is set to zero. unused of log=False
+        complex = False: returns the absolute value
+        use min_freq and max_freq to save space
+        nstd = number of standard deviations of the gaussian in one window.
     """
      
     # We need units here!!
@@ -576,22 +600,11 @@ def spectrogram(s, sample_rate, spec_sample_rate, freq_spacing, min_freq=0, max_
     window_length = nstd / (2.0*np.pi*freq_spacing)
     t,freq,timefreq,rms = gaussian_stft(s, sample_rate, window_length, increment, nstd=nstd, min_freq=min_freq, max_freq=max_freq)
 
-    if cmplx:
-        return t, freq, timefreq, rms
-
-    if log:
-        #create log spectrogram (power in decibels)
-        abstimefreq = np.abs(timefreq)
-        maxabs = np.max(abstimefreq)
-        spec = 20.0*np.log10(abstimefreq/maxabs) + noise_level_db
-        if rectify:
-            #rectify spectrogram
-            spec[spec < 0.0] = 0.0
-    else:
-        spec = np.abs(timefreq)
-
-    rms = spec.std(axis=0, ddof=1)
-    return t,freq,spec,rms
+    # rms = spec.std(axis=0, ddof=1)
+    if cmplx == False:
+        timefreq = np.abs(timefreq)
+        
+    return t, freq, timefreq, rms
 
 
 def temporal_envelope(s, sample_rate, cutoff_freq=200.0, resample_rate=None):
