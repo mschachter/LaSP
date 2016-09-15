@@ -587,11 +587,27 @@ def play_sound_array(data, sample_rate):
 
 def spectrogram(s, sample_rate, spec_sample_rate, freq_spacing, min_freq=0, max_freq=None, nstd=6,  cmplx = True):
     """
-        Given a sound pressure waveform, compute the complex spectrogram. See documentation on gaussian_stft for arguments and return values.
+        Given a sound pressure waveform, s, compute the complex spectrogram. 
+        See documentation on gaussian_stft for additional details.
 
-        complex = False: returns the absolute value
-        use min_freq and max_freq to save space
-        nstd = number of standard deviations of the gaussian in one window.
+        Returns: 
+          t, freq, timefreq, rms
+              t: array of time values to use as x axis
+              freq: array of frequencies to use as y axis
+              timefreq: the spectrogram (a time-frequency represnetaion)
+              rms : the time varying average
+              
+        Arguments:
+            REQUIRED:
+                s: sound pressssure waveform
+                sample_rate: sampling rate for s in Hz
+                spec_sample_rate: sampling rate for the output spectrogram in Hz. This variable sets sthe overlap for the windows in the STFFT.
+                freq_spacing: the time-frequency scale for the spectrogram in Hz. This variable determines the width of the gaussian window. 
+            
+            OPTIONAL            
+                complex = False: returns the absolute value
+                use min_freq and max_freq to save space
+                nstd = number of standard deviations of the gaussian in one window.
     """
      
     # We need units here!!
