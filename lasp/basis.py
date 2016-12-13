@@ -150,7 +150,7 @@ def cubic_spline_basis(x, num_knots=3, return_knots=False, knots=None):
         assert knots.min() >= x.min()
         assert knots.max() <= x.max()
         if len(np.unique(knots)) != len(knots):
-            print '[cubic_spline_basis] number of unique kernels is less than the degrees of freedom, trying wider knot spacing (q10, q50, q90)'
+            # print '[cubic_spline_basis] number of unique kernels is less than the degrees of freedom, trying wider knot spacing (q10, q50, q90)'
             knots = [np.percentile(x, 10), np.percentile(x, 50), np.percentile(x, 90)]
         assert len(np.unique(knots)) == len(knots), '# of unique kernels is less than the degrees of freedom!'
 
