@@ -52,7 +52,7 @@ def discriminatePlot(X, y, cVal, titleStr=''):
 
       
     # Initialise Classifiers  
-    ldaMod = LDA(n_components = min(nD,nClasses-1), priors = myPrior ) 
+    ldaMod = LDA(n_components = min(nD,nClasses-1), priors = myPrior, shrinkage = None) 
     qdaMod = QDA(priors = myPrior)
     rfMod = RF()   # by default assumes equal weights
 
