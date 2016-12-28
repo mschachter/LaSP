@@ -65,7 +65,7 @@ class DiscreteProcessTest(TestCase):
         print 'Empirical distribution: %s' % str(p_empirical)
 
         # estimate the distribution with a variety of time constants
-        taus = [50e-3, 250e-3, 500e-3, 1.0]
+        taus = [100e-3, 500e-3, 1.0, 5.0]
         estimators = list()
         for tau in taus:
             est = DiscreteProcessEstimator(ndim, sample_rate, tau)
