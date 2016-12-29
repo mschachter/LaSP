@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 import nitime.algorithms as ntalg
 from nitime import utils as ntutils
-from lasp.signal import lowpass_filter, bandpass_filter
+from lasp.signal import lowpass_filter, bandpass_filter, correlation_function
 
 from brian import hears, Hz
 
@@ -785,3 +785,21 @@ def power_spectrum_jn(s, sample_rate, window_length, increment, min_freq=0, max_
     phase = np.angle(z)
 
     return freq,ps_mean,ps_var,phase
+
+
+def power_spectrum_from_acf(s, sample_rate, lags):
+    """ Compute the power spectrum of a signal s by taking the FFT of the auto-correlation function.
+
+    :param s: The signal.
+    :param sample_rate: The sample rate of the signal s.
+    :param lags: integer-valued lags, should be symmetric around zero.
+    :return: freq,psd: The frequency of the power spectrum and the power spectrum
+    """
+
+    acf = correlation_function(s, s, lags, mean_subtract=True, normalize=True)
+
+    psd = np.abs(fft(acf))**2
+    freq = fftfreq(len(acf), d=1. / sample_rate)
+    i = freq >= 0
+    return freq[i], psd[i]
+
