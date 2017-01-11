@@ -9,7 +9,7 @@ import nitime.algorithms as ntalg
 from lasp.sound import plot_spectrogram
 
 from lasp.timefreq import GaussianSpectrumEstimator,MultiTaperSpectrumEstimator,timefreq,AmplitudeReassignment,PhaseReassignment, \
-    WaveletSpectrumEstimator
+    WaveletSpectrumEstimator, power_spectrum_from_acf
 
 
 class TestTimeFreq(unittest.TestCase):
@@ -69,6 +69,7 @@ class TestTimeFreq(unittest.TestCase):
         plt.show()
     """
 
+    """
     def test_timefreq(self):
 
         np.random.seed(12345)
@@ -86,6 +87,33 @@ class TestTimeFreq(unittest.TestCase):
 
         compare_timefreqs(s, sr, win_sizes=[None])
         plt.show()
+    """
+
+    def test_power_spec_from_acf(self):
+
+        np.random.seed(12345)
+        sr = 381.4697
+        dt = 1.0 / sr
+        # duration = 20.0 + dt
+        duration = 2.0
+
+        t = np.arange(0, int(duration * sr)) * dt
+
+        # create a multicomponent signal
+        f1 = 30.0
+        f2 = 60.0
+        s = np.sin(2 * np.pi * t * f1) + np.sin(2 * np.pi * t * f2)
+
+        lags = np.arange(-20, 21)
+        freq,psd = power_spectrum_from_acf(s, sr, lags)
+
+        plt.figure()
+        plt.plot(freq, psd, 'k-')
+        plt.xlabel('Frequency (Hz)')
+        plt.ylabel('Power')
+        plt.show()
+
+
 
     """
     def test_reassignment(self):

@@ -505,3 +505,26 @@ if __name__ == '__main__':
     grouped_boxplot(data, group_names=['A', 'B', 'C'], subgroup_names=['Apples', 'Oranges'], subgroup_colors=['#D02D2E', '#D67700'])
     plt.show()
 
+
+def plot_binary_matrix(t, B, ax=None):
+    """ Plot a binary matrix using patches, to make sure nothing disappears due to interpolation...
+
+    :param t: The timestamp for each column of B, of length num_time_points
+    :param B: The binary matrix of shape (ncols, num_time_points)
+    :param ax: The axis to plot on (default=current axis)
+    :return:
+    """
+
+    if ax is not None:
+        plt.sca(ax)
+
+    # first plot grid
+
+
+
+    # now plot rectangles for each event
+
+
+
+
+
