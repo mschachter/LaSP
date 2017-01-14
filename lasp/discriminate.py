@@ -121,24 +121,34 @@ def discriminatePlot(X, y, cVal, titleStr=''):
         ldaScores.reshape(cvFolds)
         qdaScores.reshape(cvFolds)
         rfScores.reshape(cvFolds)
-                 
+      
+# Refit with all the data  for the plots
+        
     ldaMod.priors = myPrior
     qdaMod.priors = myPrior
+    ldaMod.fit(Xr, yGood)
+    qdaMod.fit(Xr, yGood)
+    rfMod.fit(Xr, yGood)
+    XrMean = Xr.mean(0)
                 
     # Make a mesh for plotting
     x1, x2 = np.meshgrid(np.arange(-6.0, 6.0, 0.1), np.arange(-6.0, 6.0, 0.1))
     xm1 = np.reshape(x1, -1)
     xm2 = np.reshape(x2, -1)
     nxm = np.size(xm1)
-    Xm = np.zeros((nxm, 2))
+    Xm = np.zeros((nxm, Xr.shape[1]))
     Xm[:,0] = xm1
     Xm[:,1] = xm2
+    for ix in range(2,Xr.shape[1]):
+        Xm[:, ix] = np.squeeze(np.ones((nxm,1)))*XrMean[ix]
+        
     XmcLDA = np.zeros((nxm, 4))  # RGBA values for color for LDA
     XmcQDA = np.zeros((nxm, 4))  # RGBA values for color for QDA
     XmcRF = np.zeros((nxm, 4))  # RGBA values for color for RF
 
     
-    # Predict values on mesh for plotting based on the first two DFs  
+    # Predict values on mesh for plotting based on the first two DFs
+    ldaMod
     if nClasses > 2:        
         yPredLDA = ldaMod.predict_proba(Xm) 
         yPredQDA = qdaMod.predict_proba(Xm) 
