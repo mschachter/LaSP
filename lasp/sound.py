@@ -55,7 +55,7 @@ class WavFile():
     def to_wav(self, output_file, normalize=False, max_amplitude=32767.0):
         wf = wave.open(output_file, 'w')
 
-        wf.setparams(self.num_channels, self.sample_depth, self.sample_rate, len(self.data), 'NONE', 'not compressed')
+        wf.setparams( (self.num_channels, self.sample_depth, self.sample_rate, len(self.data), 'NONE', 'not compressed') )
         # normalize the sample
         if normalize:
             nsound = ((self.data / np.abs(self.data).max())*max_amplitude).astype('int')
