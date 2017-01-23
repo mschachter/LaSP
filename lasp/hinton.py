@@ -46,4 +46,5 @@ def hinton(W, maxWeight=None):
                 _blob(_x - 0.5, height - _y + 0.5, min(1,-w/maxWeight),'black')
     if reenable:
         P.ion()
-    P.show()
+    # P.show()
+    return P.gcf()

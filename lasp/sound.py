@@ -359,8 +359,8 @@ class BioSound(object):
         # Plot the oscillogram + spectrogram
         plt.figure(1)
         plt.clf()
-        mngr = plt.get_current_fig_manager()
-        mngr.window.setGeometry(0, 260, 640, 545)
+        # mngr = plt.get_current_fig_manager()
+        # mngr.window.setGeometry(0, 260, 640, 545)
 
         
         # The oscillogram
@@ -403,8 +403,8 @@ class BioSound(object):
     # Plot Power Spectrum
         plt.figure(2)
         plt.clf()
-        mngr = plt.get_current_fig_manager()
-        mngr.window.setGeometry(650, 260, 640, 545)
+        # mngr = plt.get_current_fig_manager()
+        # mngr.window.setGeometry(650, 260, 640, 545)
         if self.psd != None :
             plt.plot(self.fpsd, self.psd, 'k-') 
             plt.xlabel('Frequency Hz')
@@ -429,8 +429,8 @@ class BioSound(object):
     # Table of results
         plt.figure(3)
         plt.clf()
-        mngr = plt.get_current_fig_manager()
-        mngr.window.setGeometry(320, 10, 640, 250)
+        # mngr = plt.get_current_fig_manager()
+        # mngr.window.setGeometry(320, 10, 640, 250)
         textstr = '%s  %s' % (self.emitter, self.type)
         plt.text(0.4, 1.0, textstr)
         if self.fund is not None:
