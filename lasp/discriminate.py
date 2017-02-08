@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA
 from sklearn.ensemble import RandomForestClassifier as RF
@@ -42,7 +43,8 @@ def discriminatePlot(X, y, cVal, titleStr=''):
         print 'Warning in ldaPlot: Cross-validation performed with %d folds (instead of %d)' % (cvFolds, CVFOLDS)
    
     # Data size and color values   
-    nD = XGood.shape[1]                 # Dimensionality of X
+    nD = XGood.shape[1]                 # number of features in X
+    nX = XGood.shape[0]                 # number of data points in X
     cClasses = []   # Color code for each class
     for cl in classes:
         icl = (yGood == cl).nonzero()[0][0]
@@ -50,32 +52,23 @@ def discriminatePlot(X, y, cVal, titleStr=''):
     cClasses = np.asarray(cClasses)
     myPrior = np.ones(nClasses)*(1.0/nClasses)  
 
-      
+    # Perform a PCA for dimensionality reduction so that the covariance matrix can be fitted.
+    nDmax = int(np.fix(np.sqrt(nX/5)))
+    if nDmax < nD:
+        print 'Warning: Insufficient data for', nD, 'parameters. PCA projection to', nDmax, 'dimensions.' 
+    nDmax = min(nD, nDmax)
+    pca = PCA(n_components=nDmax)
+    Xr = pca.fit_transform(XGood)
+    print 'Variance explained is %.2f%%' % (sum(pca.explained_variance_ratio_)*100.0)
+    
+    
     # Initialise Classifiers  
-    ldaMod = LDA(n_components = min(nD,nClasses-1), priors = myPrior, shrinkage = None) 
+    ldaMod = LDA(n_components = min(nDmax,nClasses-1), priors = myPrior, shrinkage = None, solver = 'svd') 
     qdaMod = QDA(priors = myPrior)
     rfMod = RF()   # by default assumes equal weights
 
-    
-    # Use lda to do a dimensionality reduction in discriminant function space
-    Xr = ldaMod.fit_transform(XGood, yGood) 
-    
-    # Check labels
-    for a, b in zip(classes, ldaMod.classes_):
-        if a != b:
-            print 'Error in ldaPlot: labels do not match'
-
-  
-    # Print the coefficients of first 3 DFA 
-    print 'LDA Weights:'
-    print 'DFA1:', ldaMod.coef_[0,:]
-    if nClasses > 2:
-        print 'DFA2:', ldaMod.coef_[1,:] 
-    if nClasses > 3:
-        print 'DFA3:', ldaMod.coef_[2,:] 
         
     # Perform CVFOLDS fold cross-validation to get performance of classifiers.
-    # Here using X or Xr should give very similar results
     ldaScores = np.zeros(cvFolds)
     qdaScores = np.zeros(cvFolds)
     rfScores = np.zeros(cvFolds)
@@ -92,6 +85,7 @@ def discriminatePlot(X, y, cVal, titleStr=''):
         # Specity the training data set, the number of groups and priors
         yTrain = yGood[train[goodIndTrain]]
         XrTrain = Xr[train[goodIndTrain]]
+
         trainClasses, trainCount = np.unique(yTrain, return_counts=True) 
         ntrainClasses = trainClasses.size
         
@@ -114,6 +108,7 @@ def discriminatePlot(X, y, cVal, titleStr=''):
         ldaScores[iskf] = ldaMod.score(Xr[test[goodInd]], yGood[test[goodInd]])
         qdaScores[iskf] = qdaMod.score(Xr[test[goodInd]], yGood[test[goodInd]])
         rfScores[iskf] = rfMod.score(Xr[test[goodInd]], yGood[test[goodInd]])
+
         iskf += 1
      
     if (iskf !=  cvFolds):
@@ -126,37 +121,50 @@ def discriminatePlot(X, y, cVal, titleStr=''):
         
     ldaMod.priors = myPrior
     qdaMod.priors = myPrior
-    ldaMod.fit(Xr, yGood)
-    qdaMod.fit(Xr, yGood)
-    rfMod.fit(Xr, yGood)
-    XrMean = Xr.mean(0)
+    Xrr = ldaMod.fit_transform(Xr, yGood)
+    # Check labels
+    for a, b in zip(classes, ldaMod.classes_):
+        if a != b:
+            print 'Error in ldaPlot: labels do not match'
+  
+    # Print the coefficients of first 3 DFA 
+    print 'LDA Weights:'
+    print 'DFA1:', ldaMod.coef_[0,:]
+    if nClasses > 2:
+        print 'DFA2:', ldaMod.coef_[1,:] 
+    if nClasses > 3:
+        print 'DFA3:', ldaMod.coef_[2,:] 
+        
+    # Obtain fits in this rotated space for display purposes   
+    ldaMod.fit(Xrr, yGood)    
+    qdaMod.fit(Xrr, yGood)
+    rfMod.fit(Xrr, yGood)
+    
+    XrrMean = Xrr.mean(0)
                 
     # Make a mesh for plotting
     x1, x2 = np.meshgrid(np.arange(-6.0, 6.0, 0.1), np.arange(-6.0, 6.0, 0.1))
     xm1 = np.reshape(x1, -1)
     xm2 = np.reshape(x2, -1)
     nxm = np.size(xm1)
-    Xm = np.zeros((nxm, Xr.shape[1]))
+    Xm = np.zeros((nxm, Xrr.shape[1]))
     Xm[:,0] = xm1
-    Xm[:,1] = xm2
-    for ix in range(2,Xr.shape[1]):
-        Xm[:, ix] = np.squeeze(np.ones((nxm,1)))*XrMean[ix]
+    if Xrr.shape[1] > 1 :
+        Xm[:,1] = xm2
+        
+    for ix in range(2,Xrr.shape[1]):
+        Xm[:,ix] = np.squeeze(np.ones((nxm,1)))*XrrMean[ix]
         
     XmcLDA = np.zeros((nxm, 4))  # RGBA values for color for LDA
     XmcQDA = np.zeros((nxm, 4))  # RGBA values for color for QDA
     XmcRF = np.zeros((nxm, 4))  # RGBA values for color for RF
 
     
-    # Predict values on mesh for plotting based on the first two DFs
-    ldaMod
-    if nClasses > 2:        
-        yPredLDA = ldaMod.predict_proba(Xm) 
-        yPredQDA = qdaMod.predict_proba(Xm) 
-        yPredRF = rfMod.predict_proba(Xm)
-    else:
-        yPredLDA = ldaMod.predict_proba(Xm[:,0:1]) 
-        yPredQDA = qdaMod.predict_proba(Xm[:,0:1]) 
-        yPredRF = rfMod.predict_proba(Xm[:,0:1])
+    # Predict values on mesh for plotting based on the first two DFs     
+    yPredLDA = ldaMod.predict_proba(Xm) 
+    yPredQDA = qdaMod.predict_proba(Xm) 
+    yPredRF = rfMod.predict_proba(Xm)
+
     
     # Transform the predictions in color codes
     maxLDA = yPredLDA.max()
@@ -173,13 +181,13 @@ def discriminatePlot(X, y, cVal, titleStr=''):
     Zplot = XmcLDA.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
     plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
     if nClasses > 2:
-        plt.scatter(Xr[:,0], Xr[:,1], c=cValGood, s=40, zorder=1)
+        plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
     else:
-        plt.scatter(Xr,(np.random.rand(Xr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
-    plt.title('%s: LDA pC %.2f %%' % (titleStr, (ldaScores.mean()*100.0)))
-    plt.xlim((-6, 6))
-    plt.ylim((-6, 6))
+        plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+    plt.title('%s: LDA pC %.0f %%' % (titleStr, (ldaScores.mean()*100.0)))
     plt.axis('square')
+    plt.xlim((-6, 6))
+    plt.ylim((-6, 6))    
     plt.xlabel('DFA 1')
     plt.ylabel('DFA 2')
 
@@ -198,15 +206,16 @@ def discriminatePlot(X, y, cVal, titleStr=''):
     Zplot = XmcQDA.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
     plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
     if nClasses > 2:
-        plt.scatter(Xr[:,0], Xr[:,1], c=cValGood, s=40, zorder=1)
+        plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
     else:
-        plt.scatter(Xr,(np.random.rand(Xr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
-    plt.title('%s: QDA pC %.2f %%' % (titleStr, (qdaScores.mean()*100.0)))
+        plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+    plt.title('%s: QDA pC %.0f %%' % (titleStr, (qdaScores.mean()*100.0)))
     plt.xlabel('DFA 1')
     plt.ylabel('DFA 2')
+    plt.axis('square')
     plt.xlim((-6, 6))
     plt.ylim((-6, 6))
-    plt.axis('square')
+    
     
     # Transform the predictions in color codes
     maxRF = yPredRF.max()
@@ -222,15 +231,16 @@ def discriminatePlot(X, y, cVal, titleStr=''):
     Zplot = XmcRF.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
     plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
     if nClasses > 2:    
-        plt.scatter(Xr[:,0], Xr[:,1], c=cValGood, s=40, zorder=1)
+        plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
     else:
-        plt.scatter(Xr,(np.random.rand(Xr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
-    plt.title('%s: RF pC %.2f %%' % (titleStr, (rfScores.mean()*100.0)))
+        plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+    plt.title('%s: RF pC %.0f %%' % (titleStr, (rfScores.mean()*100.0)))
     plt.xlabel('DFA 1')
     plt.ylabel('DFA 2')
+    plt.axis('square')
     plt.xlim((-6, 6))
     plt.ylim((-6, 6))
-    plt.axis('square')
+    
     plt.show()
 
 
