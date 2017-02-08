@@ -727,6 +727,21 @@ def simple_smooth(s, window_len):
     return convolve1d(s, w)
 
 
+def temporal_smooth(s, sample_rate, tau, hwinlen=20):
+    """ Smooth with a gaussian.
+
+    :param s: The signal
+    :param tau: SD of gaussian
+    :param hwinlen: Half the number of points used in the window.
+    :return:  The smoothed signal
+    """
+
+    t = np.arange(-hwinlen, hwinlen+1) / sample_rate
+    w = np.exp(-t**2 / tau)
+    w /= w.sum()
+    return convolve1d(s, w)
+
+
 def quantify_cf(lags, cf, plot=False):
     """ Quantify properties of an auto or cross correlation function. """
 
