@@ -510,14 +510,18 @@ def plot_spectrogram(t, freq, spec, ax=None, ticks=True, fmin=None, fmax=None, c
     plotSpect = np.abs(spec)
     
     
-    if log == True:
+    if log == True and dBNoise is not None:
         plotSpect = 20*np.log10(plotSpect)
         maxB = plotSpect.max()
         minB = maxB-dBNoise
     else:
-        maxB = 20*np.log10(plotSpect.max())
-        minB = np.pow((maxB-dBNoise)/20, 10)
-        
+        if dBNoise is not None:
+            maxB = 20*np.log10(plotSpect.max())
+            minB = ((maxB-dBNoise)/20)**10
+        else:
+            maxB = plotSpect.max()
+            minB = plotSpect.min()
+
     plotSpect[plotSpect < minB] = minB
                 
     iax = ax.imshow(plotSpect, aspect='auto', interpolation='nearest', origin='lower', extent=ex, cmap=colormap, vmin=minB, vmax=maxB)
