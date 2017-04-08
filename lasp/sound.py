@@ -1,4 +1,5 @@
 import copy
+from copy import deepcopy
 import fnmatch
 from math import ceil
 from numpy.fft import fftshift, ifftshift
@@ -1488,3 +1489,44 @@ def log_transform(x, dbnoise=100, normalize=False):
     x[x < 0] = 0
     if normalize:
         x /= x.max()
+
+
+def spec_stats(spec_t, spec_freq, spec):
+    """ Compute time-varying statistics on a spectrogram (or log spectrogram).
+
+    :param spec_t: Spectrogram times with shape (num_time_points)
+    :param spec_freq: Spectrogram frequencies with shape (num_freq)
+    :param spec: Spectrogram of shape (num_freq, num_time_points)
+
+    :return:
+    """
+
+    # normalize each time point by it's sum to create a probability distribution
+    nfreq,nt = spec.shape
+    spec_p = deepcopy(spec)
+    spec_p -= spec_p.min()
+    spec_p_sum = spec_p.sum(axis=0)
+    spec_p /= spec_p_sum
+
+    # compute mean frequency
+    freq_mean = np.dot(spec_p.T, spec_freq)
+
+    # compute quantiles
+    spec_p_csum = np.cumsum(spec_p, axis=0)
+
+    qvals = [0.25, 0.5, 0.75]
+    Q = np.zeros([len(qvals), nt])
+    for t in range(nt):
+        for k,q in enumerate(qvals):
+            i = spec_p_csum[:, t] <= q
+            if i.sum() > 0:
+                fi = np.max(np.where(i)[0])
+                Q[k, t] = spec_freq[fi]
+
+    stats = dict()
+    stats['Q'] = Q
+    stats['qvals'] = qvals
+    stats['freq_mean'] = freq_mean
+
+    return stats
+
