@@ -438,3 +438,38 @@ def simple_synchrony(spike_times1, spike_times2, duration, bin_size=1e-1):
     return np.sum(b1 & b2) / np.sqrt(n1*n2)
 
 
+def exp_conv(spike_times, duration, tau, bin_size, causal=True):
+    """ Convolve spike train with an exponential kernel. 
+    
+    :param spike_times: List of spike times in seconds.
+    :param tau: Exponential time constant in seconds.
+    :param duration: The duration of the time series.
+    :param bin_size: Bin size in seconds
+    :param causal: Whether to use a causal filter or not. If causal=False, then the spike times are convolved with a two-sided exponential
+    
+    :return: An array time series. 
+    """
+
+    assert spike_times.min() >= 0, "No negative spike times for exp_conv!"
+
+    nt = int(duration / bin_size)
+
+    good_spikes = (spike_times > 0) & (spike_times < duration)
+    i = (spike_times[good_spikes] / bin_size).astype('int')
+
+    s = np.zeros([nt])
+    s[i] = 1.
+
+    # make sure the exponential window size is at least 4 times the time constant
+    winlen = 4*int(tau/bin_size) + 1
+    assert winlen < len(s), "Signal is too small to convolve with exponential that has tau=%0.3f" % tau
+    hwinlen = int(winlen / 2)
+    twin = np.arange(-hwinlen, hwinlen+1)*bin_size
+    win = np.zeros_like(twin)
+    win[hwinlen:] = np.exp(-twin[hwinlen:] / tau)
+    if ~causal:
+        win[:hwinlen] = win[(hwinlen+1):][::-1]
+
+    sc = convolve1d(s, win)
+
+    return sc
