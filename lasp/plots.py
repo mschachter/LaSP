@@ -52,6 +52,9 @@ def multi_plot(the_data_list, plot_func, title=None, nrows=4, ncols=5, figsize=N
 
         nsp += 1
         sp = nsp % plots_per_page
+        if sp == 0:
+            sp = plots_per_page
+
         ax = fig.add_subplot(nrows, ncols, sp)
         plot_func(pdata, ax)
 

@@ -3,7 +3,7 @@ import mne
 import pandas as pd
 from scipy.fftpack import fft,fftfreq,ifft,fftshift
 from scipy.ndimage import convolve1d
-from scipy.signal import filter_design, resample,filtfilt
+from scipy.signal import filter_design, resample, filtfilt, hilbert
 import matplotlib.pyplot as plt
 import nitime.algorithms as ntalg
 from sklearn.decomposition import PCA,RandomizedPCA
@@ -827,4 +827,29 @@ def whiten(s, order):
 
     return sm - np.r_[0, spred], reg.coef_
 
+
+def fast_analytic(s):
+    """ Speeds up calculation of analytic signal by breaking s into sub-signals with length equal to a power of 2.
+    """
+    z = np.zeros([len(s)], dtype='complex64')
+
+    def _find_largest_power_of_2(_siglen, _lowest_pow=10):
+        while 2**_lowest_pow < _siglen:
+            _lowest_pow += 1
+        return _lowest_pow - 1
+
+    last_index = 0
+    while last_index < len(s):
+        npts_left = len(s) - last_index
+        p2 = _find_largest_power_of_2(npts_left)
+        npts = 2**p2
+        if npts > npts_left:
+            npts = npts_left
+
+        si = last_index
+        ei = si + npts
+        z[si:ei] = hilbert(s[si:ei], N=npts)
+        last_index = ei
+
+    return z
 
